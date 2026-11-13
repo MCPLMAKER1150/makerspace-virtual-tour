@@ -15,7 +15,21 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}#panorama{w
 .pnlm-hotspot.tour-nav::before,.pnlm-hotspot.tour-turn::before,.pnlm-hotspot.tour-info::before{content:'➜';position:absolute;inset:0;display:grid;place-items:center;font-size:23px;color:white;font-weight:bold;transform:rotate(var(--turn, -90deg))}
 .pnlm-hotspot.tour-turn::before{content:'⤾';font-size:29px;transform:none}.pnlm-hotspot.tour-info::before{content:'i';font-family:Georgia,serif;font-size:23px;transform:none}
 .pnlm-hotspot.tour-nav.rot0{--turn:-90deg}.pnlm-hotspot.tour-nav.rot45{--turn:-45deg}.pnlm-hotspot.tour-nav.rot90{--turn:0deg}.pnlm-hotspot.tour-nav.rot270{--turn:180deg}.pnlm-hotspot.tour-nav.rot315{--turn:225deg}
-@media(max-width:600px){#controls{max-height:50vh;overflow:auto}#controls h1{font-size:14px}}
+
+#navPad{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:18;pointer-events:none}
+#navPad .pad{position:relative;width:220px;height:170px}
+#navPad button{position:absolute;pointer-events:auto;width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:rgba(11,76,98,.9);color:white;box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:28px;font-weight:bold;cursor:pointer;display:none}
+#navPad button.show{display:grid;place-items:center}
+#navPad button:hover{background:rgba(21,111,141,.95)}
+#navPad button.turn{background:rgba(115,80,30,.92)}
+#navPad button.turn:hover{background:rgba(145,102,38,.95)}
+#navForward{top:0;left:50%;transform:translateX(-50%)}
+#navLeft{top:58px;left:24px}
+#navRight{top:58px;right:24px}
+#navTurn{bottom:0;left:50%;transform:translateX(-50%)}
+#navPadLabel{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);padding:5px 10px;border-radius:999px;background:rgba(15,24,32,.82);color:#fff;font-size:12px;white-space:nowrap;display:none}
+#navPadLabel.show{display:block}
+@media(max-width:600px){#controls{max-height:50vh;overflow:auto}#controls h1{font-size:14px}#navPad .pad{width:200px;height:156px}#navPad button{width:52px;height:52px;font-size:26px}#navLeft{left:18px}#navRight{right:18px}}
 
 /* Screen-anchored route controls: never rotate out of the panorama. */
 #routeBar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:40;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box;padding:10px 12px;border-radius:12px;background:rgba(15,24,32,.92);color:white;box-shadow:0 3px 14px #0007}
@@ -34,6 +48,16 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}#panorama{w
 <button type="button" id="start">Return to tour start</button>
 <div id="editorPane"><label for="viewSelect">Development: saved navigation view</label><select id="viewSelect"></select><p style="font-size:12px">For testing only. Every scene retains its physical exits. Use this menu to test arrival angles; click the panorama to read coordinates.</p><div id="clickCoords" aria-live="polite">No coordinates selected.</div></div>
 </div></section>
+<div id="navPad" aria-label="Walking navigation controls">
+  <div class="pad">
+    <div id="navPadLabel" aria-live="polite"></div>
+    <button type="button" id="navForward" title="Go forward" aria-label="Go forward">↑</button>
+    <button type="button" id="navLeft" title="Go left" aria-label="Go left">←</button>
+    <button type="button" id="navRight" title="Go right" aria-label="Go right">→</button>
+    <button type="button" id="navTurn" class="turn" title="Turn around" aria-label="Turn around">⤾</button>
+  </div>
+</div>
+
 <script>
 'use strict';
 // The two tables supplied for the makerspace tour; no original patron photographs are included.
@@ -520,72 +544,125 @@ const equipment = [
 ];
 const sceneDefinitions = {};
 for (let i=1;i<=9;i++) sceneDefinitions[`scene${i}`]={type:'equirectangular',panorama:`R00100${16+i}E.jpg`,title:`Scene ${i}`,hotSpots:[]};
-// Route buttons live on the screen, not in panorama coordinates.
-// Keep the original links table to preserve destination-specific arrival views.
-// nav6 duplicates the Scene 2 -> Scene 4 route and remains excluded.
-const enabledLinks = links.filter(item => item.id !== 'nav6');
-const routesByScene = {};
-for (const item of enabledLinks) {
-  const scene = views[item.source].scene;
-  if (!routesByScene[scene]) routesByScene[scene] = [];
-  // Prevent duplicate destination buttons in the same scene.
-  if (!routesByScene[scene].some(x => x.target === item.target)) routesByScene[scene].push(item);
-}
-function renderRouteButtons() {
-  const scene = viewer.getScene();
-  const buttons = document.getElementById('routeButtons');
-  const heading = document.getElementById('routeBarTitle');
-  buttons.replaceChildren();
-  if (!scene) return;
-  heading.textContent = `Walking navigation — Scene ${scene.replace('scene', '')}`;
-  for (const item of (routesByScene[scene] || [])) {
-    const target = views[item.target];
-    const turn = item.kind === 'turn';
-    const b = document.createElement('button');
-    b.type = 'button';
-    if (turn) b.className = 'turn-button';
-    b.textContent = turn ? '⤾ Turn around' : `➜ Scene ${target.scene.replace('scene', '')}`;
-    b.setAttribute('aria-label', turn ? 'Turn camera around in this scene' : `Move to Scene ${target.scene.replace('scene', '')}`);
-    b.addEventListener('click', () => activateView(item.target, true));
-    buttons.appendChild(b);
-  }
-}
 
+// Use route-specific controls for navigation, not scene-wide text buttons.
+// This preserves your arrival views while keeping the controls fixed on screen.
+const enabledLinks = links.filter(item => item.id !== 'nav6');
+const slotByLinkId = {
+  nav1:'forward', nav3:'forward', nav4:'right', nav5:'forward', nav6:'forward',
+  nav8:'forward', nav9:'right', nav10:'forward', nav11:'right', nav12:'forward',
+  nav13:'left', nav14:'right', nav15:'forward', nav16:'forward', nav17:'right',
+  nav18:'forward', nav19:'forward', nav20:'forward', nav21:'forward', nav22:'forward',
+  nav23:'forward', nav24:'left', nav25:'right', nav26:'forward'
+};
+const turnTargets = {
+  s1start:'s1return', s1return:'s1start',
+  s2from1:'s2from3', s2from3:'s2from1', s2to4:'s2from3',
+  s3from2:'s3face2', s3face2:'s3from2',
+  s4from23:'s4from59', s4from59:'s4from23',
+  s5from4:'s5from6', s5from6:'s5from4',
+  s6from5:'s6from7', s6from7:'s6from5',
+  s7from6:'s7from8', s7from8:'s7from6',
+  s8from7:'s8from9', s8from9:'s8from7',
+  s9from8:'s9from45', s9from45:'s9from8'
+};
+const sceneDefaultPreset = {
+  scene1:'s1start', scene2:'s2from1', scene3:'s3face2', scene4:'s4from23',
+  scene5:'s5from4', scene6:'s6from5', scene7:'s7from6', scene8:'s8from7', scene9:'s9from8'
+};
+const linksBySource = {};
+for (const item of enabledLinks) {
+  if (item.kind === 'turn') continue; // turnaround handled by fixed turn button
+  (linksBySource[item.source] ||= []).push(item);
+}
 const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:120},scenes:sceneDefinitions});
 let activePreset='s1start';
 const viewSelect=document.getElementById('viewSelect');
 const equipmentSelect=document.getElementById('equipmentSelect');
+const navForward=document.getElementById('navForward');
+const navLeft=document.getElementById('navLeft');
+const navRight=document.getElementById('navRight');
+const navTurn=document.getElementById('navTurn');
+const navPadLabel=document.getElementById('navPadLabel');
 Object.entries(views).forEach(([id,v])=>{const o=document.createElement('option');o.value=id;o.textContent=v.label;viewSelect.appendChild(o)});
 equipment.forEach((item,index)=>{const o=document.createElement('option');o.value=String(index);o.textContent=item.name;equipmentSelect.appendChild(o)});
 viewSelect.value='s1start';
-// A route changes the camera's arrival view but never the set of exits.
+function routeLabel(item){
+  const sceneNum = views[item.target].scene.replace('scene','');
+  return item.kind === 'turn' ? 'Turn around' : `Go to Scene ${sceneNum}`;
+}
+function clearNavButtons(){
+  [navForward,navLeft,navRight,navTurn].forEach(btn=>{btn.classList.remove('show'); btn.onclick=null; btn.removeAttribute('data-target'); btn.dataset.label='';});
+  navPadLabel.classList.remove('show');
+}
+function assignNavButton(button, item){
+  if (!button || !item) return;
+  const label = routeLabel(item);
+  button.classList.add('show');
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  button.dataset.label = label;
+  button.onclick = () => activateView(item.target, true);
+}
+function renderNavPad(){
+  clearNavButtons();
+  const preset = activePreset || sceneDefaultPreset[viewer.getScene()] || 's1start';
+  const scene = views[preset]?.scene || viewer.getScene();
+  const sceneNum = scene ? scene.replace('scene','') : '';
+  const sceneLinks = linksBySource[preset] || [];
+  const slotItems = {};
+  for (const item of sceneLinks) {
+    const slot = slotByLinkId[item.id] || 'forward';
+    if (!slotItems[slot]) slotItems[slot] = item;
+  }
+  assignNavButton(navForward, slotItems.forward);
+  assignNavButton(navLeft, slotItems.left);
+  assignNavButton(navRight, slotItems.right);
+  const turnTarget = turnTargets[preset];
+  if (turnTarget) {
+    navTurn.classList.add('show');
+    navTurn.title = 'Turn around';
+    navTurn.setAttribute('aria-label', 'Turn around');
+    navTurn.dataset.label = 'Turn around';
+    navTurn.onclick = () => activateView(turnTarget, true);
+  }
+  navPadLabel.textContent = `Walking navigation — Scene ${sceneNum}`;
+  navPadLabel.classList.add('show');
+}
 function activateView(id, animated = false) {
   const v = views[id];
   if (!v) return;
   activePreset = id;
   viewSelect.value = id;
   equipmentSelect.value = '';
+  const done = () => renderNavPad();
   if (viewer.getScene() === v.scene) {
     viewer.lookAt(v.pitch, v.yaw, v.hfov, animated ? 1100 : 0);
+    done();
   } else {
     viewer.loadScene(v.scene, v.pitch, v.yaw, v.hfov);
+    // scenechange event will also fire, but render once immediately for responsiveness
+    setTimeout(done, 50);
   }
 }
-viewer.on('scenechange', renderRouteButtons);
 viewSelect.addEventListener('change', () => activateView(viewSelect.value));
 document.getElementById('start').addEventListener('click', () => activateView('s1start', true));
 equipmentSelect.addEventListener('change', () => {
   if (equipmentSelect.value === '') return;
   const e = equipment[Number(equipmentSelect.value)];
-  // Equipment selection changes the view, but navigation arrows stay available.
-  activePreset = '';
-  viewSelect.value = '';
+  // Keep navigation visible. If switching scenes, choose the scene's default navigation context.
+  if (viewer.getScene() !== e.scene) activePreset = sceneDefaultPreset[e.scene] || activePreset;
+  if (activePreset) viewSelect.value = activePreset;
+  const done = () => renderNavPad();
   if (viewer.getScene() === e.scene) {
     viewer.lookAt(e.viewPitch, e.viewYaw, e.hfov, 1100);
+    done();
   } else {
     viewer.loadScene(e.scene, e.viewPitch, e.viewYaw, e.hfov);
+    setTimeout(done, 50);
   }
 });
+viewer.on('scenechange', renderNavPad);
 viewer.on('mousedown',ev=>{
  const result=viewer.mouseEventToCoords(ev);
  if(!result)return;
@@ -594,6 +671,5 @@ viewer.on('mousedown',ev=>{
 });
 const controls=document.getElementById('controls');
 document.getElementById('toggleControls').addEventListener('click',()=>{const hide=controls.classList.toggle('collapsed');document.getElementById('toggleControls').textContent=hide?'Show':'Hide'});
-// Route bar is initialized once and refreshed on scene changes.
-renderRouteButtons();
+renderNavPad();
 </script></body></html>
