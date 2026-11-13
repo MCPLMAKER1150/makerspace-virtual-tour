@@ -22,7 +22,7 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}#panorama{w
 <h1>Makerspace Virtual Tour</h1>
 <label for="equipmentSelect">Find equipment</label><select id="equipmentSelect"><option value="">Choose equipment…</option></select>
 <button type="button" id="start">Return to tour start</button>
-<div id="editorPane"><label for="viewSelect">Development: saved navigation view</label><select id="viewSelect"></select><p style="font-size:12px">For testing only. Click an arrow to navigate, or select a saved view. Click the panorama to read coordinates.</p><div id="clickCoords" aria-live="polite">No coordinates selected.</div></div>
+<div id="editorPane"><label for="viewSelect">Development: saved navigation view</label><select id="viewSelect"></select><p style="font-size:12px">For testing only. Every scene retains its physical exits. Use this menu to test arrival angles; click the panorama to read coordinates.</p><div id="clickCoords" aria-live="polite">No coordinates selected.</div></div>
 </div></section>
 <script>
 'use strict';
@@ -510,6 +510,28 @@ const equipment = [
 ];
 const sceneDefinitions = {};
 for (let i=1;i<=9;i++) sceneDefinitions[`scene${i}`]={type:'equirectangular',panorama:`R00100${16+i}E.jpg`,title:`Scene ${i}`,hotSpots:[]};
+// Navigation belongs to the physical scene, not to the way visitors arrived.
+// We retain each arrow's original destination view (pitch / yaw / HFOV).
+// Scene 2 had two arrows leading to Scene 4 (nav4 and nav6) at different
+// positions. Keep nav4 as the default physical exit; review its placement in
+// the panorama before publishing. The original nav6 measurements remain in
+// `links` above for reference.
+const enabledLinks = links.filter(item => item.id !== 'nav6');
+for (const item of enabledLinks) {
+  const sourceScene = views[item.source].scene;
+  const targetView = views[item.target];
+  const isTurn = item.kind === 'turn';
+  sceneDefinitions[sourceScene].hotSpots.push({
+    id: item.id,
+    pitch: item.pitch,
+    yaw: item.yaw,
+    type: 'info',
+    cssClass: isTurn ? 'pnlm-hotspot tour-turn' : `pnlm-hotspot tour-nav rot${item.rotation}`,
+    text: isTurn ? 'Turn around' : `Move to ${targetView.scene.replace('scene', 'Scene ')}`,
+    clickHandlerFunc: () => activateView(item.target, true)
+  });
+}
+
 const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:120},scenes:sceneDefinitions});
 let activePreset='s1start';
 const viewSelect=document.getElementById('viewSelect');
@@ -517,40 +539,33 @@ const equipmentSelect=document.getElementById('equipmentSelect');
 Object.entries(views).forEach(([id,v])=>{const o=document.createElement('option');o.value=id;o.textContent=v.label;viewSelect.appendChild(o)});
 equipment.forEach((item,index)=>{const o=document.createElement('option');o.value=String(index);o.textContent=item.name;equipmentSelect.appendChild(o)});
 viewSelect.value='s1start';
-// Pannellum hotspots are scene-level, but our navigation arrows belong to a specific arrival view.
-// Remove / add the appropriate set each time a saved view is selected.
-function updateNavigation(){
- for(const item of links){try{viewer.removeHotSpot(item.id,views[item.source].scene)}catch(e){}}
- for(const item of links.filter(x=>x.source===activePreset)){
-   const destination=views[item.target];
-   const isTurn=item.kind==='turn';
-   const spot={id:item.id,pitch:item.pitch,yaw:item.yaw,type:'info',cssClass:isTurn?'pnlm-hotspot tour-turn':`pnlm-hotspot tour-nav rot${item.rotation}`,text:isTurn?'Turn around':`Move to ${destination.scene.replace('scene','Scene ')}`,
-       clickHandlerFunc:()=>activateView(item.target,true)};
-   viewer.addHotSpot(spot,views[item.source].scene);
- }
+// A route changes the camera's arrival view but never the set of exits.
+function activateView(id, animated = false) {
+  const v = views[id];
+  if (!v) return;
+  activePreset = id;
+  viewSelect.value = id;
+  equipmentSelect.value = '';
+  if (viewer.getScene() === v.scene) {
+    viewer.lookAt(v.pitch, v.yaw, v.hfov, animated ? 1100 : 0);
+  } else {
+    viewer.loadScene(v.scene, v.pitch, v.yaw, v.hfov);
+  }
 }
-function activateView(id,animated=false){
- const v=views[id];if(!v)return;
- activePreset=id;viewSelect.value=id;equipmentSelect.value='';
- // Set active view before loading scene; scenechange below can run during load.
- if(viewer.getScene()===v.scene)viewer.lookAt(v.pitch,v.yaw,v.hfov,animated?1100:0);
- else viewer.loadScene(v.scene,v.pitch,v.yaw,v.hfov);
- updateNavigation();
-}
-viewSelect.addEventListener('change',()=>activateView(viewSelect.value));
-document.getElementById('start').addEventListener('click',()=>activateView('s1start',true));
-equipmentSelect.addEventListener('change',()=>{
- if(equipmentSelect.value==='')return;
- const e=equipment[Number(equipmentSelect.value)];
- // hide route arrows on equipment-focused views to avoid suggesting the camera moved to another location
- activePreset='';
- updateNavigation();
- if(viewer.getScene()===e.scene)viewer.lookAt(e.viewPitch,e.viewYaw,e.hfov,1100);
- else viewer.loadScene(e.scene,e.viewPitch,e.viewYaw,e.hfov);
- viewSelect.value='';
+viewSelect.addEventListener('change', () => activateView(viewSelect.value));
+document.getElementById('start').addEventListener('click', () => activateView('s1start', true));
+equipmentSelect.addEventListener('change', () => {
+  if (equipmentSelect.value === '') return;
+  const e = equipment[Number(equipmentSelect.value)];
+  // Equipment selection changes the view, but navigation arrows stay available.
+  activePreset = '';
+  viewSelect.value = '';
+  if (viewer.getScene() === e.scene) {
+    viewer.lookAt(e.viewPitch, e.viewYaw, e.hfov, 1100);
+  } else {
+    viewer.loadScene(e.scene, e.viewPitch, e.viewYaw, e.hfov);
+  }
 });
-viewer.on('load',()=>{updateNavigation()});
-// Click coordinate feedback works in Chrome / Firefox, without devtools.
 viewer.on('mousedown',ev=>{
  const result=viewer.mouseEventToCoords(ev);
  if(!result)return;
@@ -559,6 +574,5 @@ viewer.on('mousedown',ev=>{
 });
 const controls=document.getElementById('controls');
 document.getElementById('toggleControls').addEventListener('click',()=>{const hide=controls.classList.toggle('collapsed');document.getElementById('toggleControls').textContent=hide?'Show':'Hide'});
-// Initial load may complete after page JS is ready.
-viewer.on('scenechange',()=>{updateNavigation()});
+// Scene hotspots remain installed while the camera rotates or scenes change.
 </script></body></html>
