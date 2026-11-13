@@ -16,8 +16,18 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}#panorama{w
 .pnlm-hotspot.tour-turn::before{content:'⤾';font-size:29px;transform:none}.pnlm-hotspot.tour-info::before{content:'i';font-family:Georgia,serif;font-size:23px;transform:none}
 .pnlm-hotspot.tour-nav.rot0{--turn:-90deg}.pnlm-hotspot.tour-nav.rot45{--turn:-45deg}.pnlm-hotspot.tour-nav.rot90{--turn:0deg}.pnlm-hotspot.tour-nav.rot270{--turn:180deg}.pnlm-hotspot.tour-nav.rot315{--turn:225deg}
 @media(max-width:600px){#controls{max-height:50vh;overflow:auto}#controls h1{font-size:14px}}
+
+/* Screen-anchored route controls: never rotate out of the panorama. */
+#routeBar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:40;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box;padding:10px 12px;border-radius:12px;background:rgba(15,24,32,.92);color:white;box-shadow:0 3px 14px #0007}
+#routeBarTitle{font-weight:bold;font-size:12px;margin-bottom:6px;text-align:center}
+#routeButtons{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#routeButtons button{background:#126b83;color:white;border:1px solid #a9d7e4;border-radius:8px;padding:10px 14px;min-height:44px;font:600 14px Arial,sans-serif;cursor:pointer}
+#routeButtons button:hover,#routeButtons button:focus-visible{background:#208aa5;outline:2px solid white;outline-offset:2px}
+#routeButtons button.turn-button{background:#73501e;border-color:#f0d9b3}
+@media(max-width:600px){#routeBar{bottom:8px;width:calc(100vw - 16px);padding:8px}#routeButtons{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;padding:2px 2px 6px}#routeButtons button{flex:none;font-size:13px}}
 </style></head><body>
 <div id="panorama" aria-label="Interactive 360-degree tour of the makerspace"></div>
+<nav id="routeBar" aria-label="Move through the makerspace"><div id="routeBarTitle">Walking navigation — Scene 1</div><div id="routeButtons"></div></nav>
 <section id="controls" aria-label="Tour navigation controls"><button type="button" id="toggleControls">Hide</button><div id="bodyControls">
 <h1>Makerspace Virtual Tour</h1>
 <label for="equipmentSelect">Find equipment</label><select id="equipmentSelect"><option value="">Choose equipment…</option></select>
@@ -510,26 +520,35 @@ const equipment = [
 ];
 const sceneDefinitions = {};
 for (let i=1;i<=9;i++) sceneDefinitions[`scene${i}`]={type:'equirectangular',panorama:`R00100${16+i}E.jpg`,title:`Scene ${i}`,hotSpots:[]};
-// Navigation belongs to the physical scene, not to the way visitors arrived.
-// We retain each arrow's original destination view (pitch / yaw / HFOV).
-// Scene 2 had two arrows leading to Scene 4 (nav4 and nav6) at different
-// positions. Keep nav4 as the default physical exit; review its placement in
-// the panorama before publishing. The original nav6 measurements remain in
-// `links` above for reference.
+// Route buttons live on the screen, not in panorama coordinates.
+// Keep the original links table to preserve destination-specific arrival views.
+// nav6 duplicates the Scene 2 -> Scene 4 route and remains excluded.
 const enabledLinks = links.filter(item => item.id !== 'nav6');
+const routesByScene = {};
 for (const item of enabledLinks) {
-  const sourceScene = views[item.source].scene;
-  const targetView = views[item.target];
-  const isTurn = item.kind === 'turn';
-  sceneDefinitions[sourceScene].hotSpots.push({
-    id: item.id,
-    pitch: item.pitch,
-    yaw: item.yaw,
-    type: 'info',
-    cssClass: isTurn ? 'pnlm-hotspot tour-turn' : `pnlm-hotspot tour-nav rot${item.rotation}`,
-    text: isTurn ? 'Turn around' : `Move to ${targetView.scene.replace('scene', 'Scene ')}`,
-    clickHandlerFunc: () => activateView(item.target, true)
-  });
+  const scene = views[item.source].scene;
+  if (!routesByScene[scene]) routesByScene[scene] = [];
+  // Prevent duplicate destination buttons in the same scene.
+  if (!routesByScene[scene].some(x => x.target === item.target)) routesByScene[scene].push(item);
+}
+function renderRouteButtons() {
+  const scene = viewer.getScene();
+  const buttons = document.getElementById('routeButtons');
+  const heading = document.getElementById('routeBarTitle');
+  buttons.replaceChildren();
+  if (!scene) return;
+  heading.textContent = `Walking navigation — Scene ${scene.replace('scene', '')}`;
+  for (const item of (routesByScene[scene] || [])) {
+    const target = views[item.target];
+    const turn = item.kind === 'turn';
+    const b = document.createElement('button');
+    b.type = 'button';
+    if (turn) b.className = 'turn-button';
+    b.textContent = turn ? '⤾ Turn around' : `➜ Scene ${target.scene.replace('scene', '')}`;
+    b.setAttribute('aria-label', turn ? 'Turn camera around in this scene' : `Move to Scene ${target.scene.replace('scene', '')}`);
+    b.addEventListener('click', () => activateView(item.target, true));
+    buttons.appendChild(b);
+  }
 }
 
 const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:120},scenes:sceneDefinitions});
@@ -552,6 +571,7 @@ function activateView(id, animated = false) {
     viewer.loadScene(v.scene, v.pitch, v.yaw, v.hfov);
   }
 }
+viewer.on('scenechange', renderRouteButtons);
 viewSelect.addEventListener('change', () => activateView(viewSelect.value));
 document.getElementById('start').addEventListener('click', () => activateView('s1start', true));
 equipmentSelect.addEventListener('change', () => {
@@ -574,5 +594,6 @@ viewer.on('mousedown',ev=>{
 });
 const controls=document.getElementById('controls');
 document.getElementById('toggleControls').addEventListener('click',()=>{const hide=controls.classList.toggle('collapsed');document.getElementById('toggleControls').textContent=hide?'Show':'Hide'});
-// Scene hotspots remain installed while the camera rotates or scenes change.
+// Route bar is initialized once and refreshed on scene changes.
+renderRouteButtons();
 </script></body></html>
