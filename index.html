@@ -547,13 +547,15 @@ for (let i=1;i<=9;i++) sceneDefinitions[`scene${i}`]={type:'equirectangular',pan
 
 // Use route-specific controls for navigation, not scene-wide text buttons.
 // This preserves your arrival views while keeping the controls fixed on screen.
-const enabledLinks = links.filter(item => item.id !== 'nav6');
+// Preserve all recorded routes, including the Scene 2 -> Scene 4 alternative.
+const enabledLinks = links.slice();
 const slotByLinkId = {
-  nav1:'forward', nav3:'forward', nav4:'right', nav5:'forward', nav6:'forward',
-  nav8:'forward', nav9:'right', nav10:'forward', nav11:'right', nav12:'forward',
+  nav1:'forward', nav3:'forward', nav4:'left', nav5:'forward', nav6:'left',
+  nav8:'forward', nav9:'left', nav10:'forward', nav11:'left', nav12:'forward',
   nav13:'left', nav14:'right', nav15:'forward', nav16:'forward', nav17:'right',
   nav18:'forward', nav19:'forward', nav20:'forward', nav21:'forward', nav22:'forward',
-  nav23:'forward', nav24:'left', nav25:'right', nav26:'forward'
+  nav23:'forward', nav24:'left', nav25:'right', nav26:'forward',
+  nav27:'left', nav28:'left', nav29:'left'
 };
 const turnTargets = {
   s1start:'s1return', s1return:'s1start',
@@ -570,6 +572,13 @@ const sceneDefaultPreset = {
   scene1:'s1start', scene2:'s2from1', scene3:'s3face2', scene4:'s4from23',
   scene5:'s5from4', scene6:'s6from5', scene7:'s7from6', scene8:'s8from7', scene9:'s9from8'
 };
+// Additional on-screen exits needed from the opposite arrival direction.
+// The target preset preserves the arrival camera orientation.
+enabledLinks.push(
+  {id:'nav27',source:'s2from3',target:'s4from23',kind:'move',rotation:270},
+  {id:'nav28',source:'s7from6',target:'s6from7',kind:'move',rotation:0},
+  {id:'nav29',source:'s8from7',target:'s7from8',kind:'move',rotation:0}
+);
 const linksBySource = {};
 for (const item of enabledLinks) {
   if (item.kind === 'turn') continue; // turnaround handled by fixed turn button
