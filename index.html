@@ -36,6 +36,23 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 .exitMarker:hover .chevron{border-color:#e9fdff}
 #turnWrap{text-align:center;margin-top:7px}
 @media(max-width:600px){#navPanel{width:158px}#radar{width:134px;height:134px}.exitMarker{width:27px;height:27px}.exitMarker .chevron{width:10px;height:10px}#you{width:28px;height:28px;font-size:8px}}
+
+/* One shared information marker for both Bambu Lab H2D printers in Scene 1. */
+.pnlm-hotspot.bambu-info-hotspot{width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:#215d78;box-shadow:0 3px 10px #0009;cursor:pointer;box-sizing:border-box;display:grid;place-items:center}
+.pnlm-hotspot.bambu-info-hotspot::before{content:'i';font:700 24px/1 Georgia,serif;color:white}
+.pnlm-hotspot.bambu-info-hotspot:hover,.pnlm-hotspot.bambu-info-hotspot:focus-visible{background:#16829b;outline:2px solid #f8d96a;outline-offset:2px}
+/* Keep the popup separate from the compass and the equipment selector. */
+#bambuPanel{position:absolute;z-index:40;top:16px;right:16px;width:min(350px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border-radius:14px;padding:20px;color:#ecf5f8;background:rgba(15,30,40,.96);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 25px #0008}
+#bambuPanel[hidden]{display:none}
+#bambuPanel h2{font-size:20px;margin:0 38px 4px 0}
+#bambuPanel p{line-height:1.5;font-size:14px;margin:10px 0}
+#bambuPanel h3{font-size:14px;margin:14px 0 4px}
+#bambuPanel .subhead{font-size:12px;color:#bed2db;margin:0 0 12px}
+#bambuPanel .spec{margin:10px 0;border-top:1px solid #47606b;padding-top:10px;font-size:13px}
+#bambuPanel a{color:#b3efff}
+#closeBambuPanel{position:absolute;right:10px;top:9px;border:0;background:#294656;color:white;border-radius:50%;width:34px;height:34px;font-size:21px;cursor:pointer}
+#closeBambuPanel:hover{background:#3b6479}
+@media(max-width:600px){#bambuPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}}
 </style>
 </head><body>
 <div id="panorama" aria-label="360-degree makerspace panorama"></div>
@@ -46,6 +63,19 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 <button id="start" type="button">Return to tour start</button>
 <div id="editorPane"><label for="viewSelect">Development: saved arrival view</label><select id="viewSelect"></select>
 <div id="clickCoords" aria-live="polite">Click the panorama to see coordinates.</div></div></div></section>
+
+<aside id="bambuPanel" role="region" aria-labelledby="bambuTitle" hidden>
+  <button type="button" id="closeBambuPanel" aria-label="Close Bambu Lab printer information">×</button>
+  <h2 id="bambuTitle">Bambu Lab H2D</h2>
+  <p class="subhead">FDM 3D printing · Two identical printers in the makerspace</p>
+  <p>These printers build three-dimensional objects by depositing thin layers of melted plastic filament, one layer at a time.</p>
+  <h3>What can you make?</h3>
+  <p>Prototypes, organizers, custom parts, models, and other three-dimensional projects.</p>
+  <h3>What makes the H2D different?</h3>
+  <p>The H2D uses a dual-nozzle system, which supports prints involving two materials or colors, depending on the setup.</p>
+  <p class="spec"><strong>Maximum single-nozzle build volume:</strong> 325 × 320 × 325 mm. Actual usable space depends on the print mode.</p>
+  <p>Both printers are the same model, so one information marker covers the pair.</p>
+</aside>
 <nav id="navPanel" aria-label="Directional compass">
 <div id="radar"><div id="exits"></div><div id="you">YOU ↑</div></div>
 <div id="turnWrap"><button id="turnButton" type="button">⤾ Turn around</button></div>
@@ -536,7 +566,41 @@ const equipment = [
 
 const sceneDefinitions={};
 for(let n=1;n<=9;n++)sceneDefinitions[`scene${n}`]={type:'equirectangular',panorama:`R00100${16+n}E.jpg`,title:`Scene ${n}`,hotSpots:[]};
-const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:120},scenes:sceneDefinitions});
+// A single Scene 1 marker represents both Bambu Lab H2D printers.
+// Coordinates are from the equipment hotspot table, not the camera view values.
+sceneDefinitions.scene1.hotSpots.push({
+  id:'bambu-h2d-info',
+  pitch:-12.72777603,
+  yaw:164.6490771,
+  type:'info',
+  cssClass:'pnlm-hotspot bambu-info-hotspot',
+  createTooltipFunc:function(div){
+    div.setAttribute('role','button');
+    div.setAttribute('tabindex','0');
+    div.setAttribute('aria-label','About the Bambu Lab H2D printers');
+    div.title='About the Bambu Lab H2D printers';
+    div.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openBambuInfo();}
+    });
+  },
+  clickHandlerFunc:function(){openBambuInfo();}
+});
+function openBambuInfo(){
+  const panel=document.getElementById('bambuPanel');
+  panel.hidden=false;
+  document.getElementById('closeBambuPanel').focus();
+}
+function closeBambuInfo(){document.getElementById('bambuPanel').hidden=true;}
+document.getElementById('closeBambuPanel').addEventListener('click',closeBambuInfo);
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeBambuInfo();});
+// Limit horizontal field of view on phone-sized screens. Desktop presets remain unchanged.
+// Using min() preserves equipment views that were already zoomed in below 80°.
+const phoneViewport = window.matchMedia('(max-width: 600px)');
+const MOBILE_HFOV = 80;
+function displayHfov(savedHfov) {
+  return phoneViewport.matches ? Math.min(savedHfov, MOBILE_HFOV) : savedHfov;
+}
+const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:displayHfov(views.s1start.hfov)},scenes:sceneDefinitions});
 const sceneDefaults={scene1:'s1start',scene2:'s2from1',scene3:'s3from2',scene4:'s4from23',scene5:'s5from4',scene6:'s6from5',scene7:'s7from6',scene8:'s8from7',scene9:'s9from8'};
 const turnTargets={s1start:'s1return',s1return:'s1start',s2from1:'s2from3',s2from3:'s2from1',s2to4:'s2from3',s3from2:'s3face2',s3face2:'s3from2',s4from23:'s4from59',s4from59:'s4from23',s5from4:'s5from6',s5from6:'s5from4',s6from5:'s6from7',s6from7:'s6from5',s7from6:'s7from8',s7from8:'s7from6',s8from7:'s8from9',s8from9:'s8from7',s9from8:'s9from45',s9from45:'s9from8'};
 const navLinks=links.filter(l=>l.kind==='move' && l.id!=='nav6').map(x=>({...x}));
@@ -580,18 +644,20 @@ function chooseRoutes(){
   return [...options.values()].sort((a,b)=>Number(views[a.target].scene.slice(5))-Number(views[b.target].scene.slice(5)));
 }
 function goToView(key, animate=true){
+  closeBambuInfo();
   const v=views[key];if(!v)return;
   activePreset=key;viewSelect.value=key;equipmentSelect.value='';
-  if(currentScene()===v.scene)viewer.lookAt(v.pitch,v.yaw,v.hfov,animate?1000:0);
-  else viewer.loadScene(v.scene,v.pitch,v.yaw,v.hfov);
+  if(currentScene()===v.scene)viewer.lookAt(v.pitch,v.yaw,displayHfov(v.hfov),animate?1000:0);
+  else viewer.loadScene(v.scene,v.pitch,v.yaw,displayHfov(v.hfov));
   refreshNav();
 }
 function jumpToEquipment(index){
+  closeBambuInfo();
   const e=equipment[index];if(!e)return;
   if(currentScene()!==e.scene)activePreset=sceneDefaults[e.scene];
   viewSelect.value=activePreset;
-  if(currentScene()===e.scene)viewer.lookAt(e.viewPitch,e.viewYaw,e.hfov,1000);
-  else viewer.loadScene(e.scene,e.viewPitch,e.viewYaw,e.hfov);
+  if(currentScene()===e.scene)viewer.lookAt(e.viewPitch,e.viewYaw,displayHfov(e.hfov),1000);
+  else viewer.loadScene(e.scene,e.viewPitch,e.viewYaw,displayHfov(e.hfov));
   refreshNav();
 }
 function turnAround(){
@@ -652,7 +718,7 @@ function animateCompass(){
   else positionMarkers();
   requestAnimationFrame(animateCompass);
 }
-viewer.on('scenechange',refreshNav);
+viewer.on('scenechange',function(){closeBambuInfo();refreshNav();});
 refreshNav();
 requestAnimationFrame(animateCompass);
 </script></body></html>
