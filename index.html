@@ -1,66 +1,57 @@
-<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Makerspace Virtual Tour</title>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Makerspace Virtual Tour — Compass prototype</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css">
 <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js"></script>
 <style>
-html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}#panorama{width:100%;height:100vh}
-#controls{position:absolute;top:10px;left:10px;z-index:20;max-width:min(360px,calc(100vw - 32px));background:rgba(15,24,32,.88);color:white;padding:12px;border-radius:10px;box-sizing:border-box}
-#controls h1{font-size:16px;margin:0 0 10px}#controls label{font-size:12px;display:block;margin:8px 0 4px}#controls select{width:100%;padding:8px;border-radius:4px;border:0;background:white;color:#18232c}
-#controls button{padding:7px 10px;margin-top:9px;border:0;border-radius:4px;cursor:pointer}#editorPane{margin-top:8px;border-top:1px solid #667;padding-top:5px}#clickCoords{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-#controls.collapsed #bodyControls{display:none}#toggleControls{float:right;margin:0!important}
-/* Standalone hotspot icons; the CSS class controls the appearance. */
-.pnlm-hotspot.tour-nav, .pnlm-hotspot.tour-turn, .pnlm-hotspot.tour-info{width:35px;height:35px;border-radius:50%;background:rgba(11,76,98,.96);box-shadow:0 2px 6px #0008;cursor:pointer;border:2px solid white;box-sizing:border-box}
-.pnlm-hotspot.tour-turn{background:#73501e}.pnlm-hotspot.tour-info{background:#205c88}
-.pnlm-hotspot.tour-nav::before,.pnlm-hotspot.tour-turn::before,.pnlm-hotspot.tour-info::before{content:'➜';position:absolute;inset:0;display:grid;place-items:center;font-size:23px;color:white;font-weight:bold;transform:rotate(var(--turn, -90deg))}
-.pnlm-hotspot.tour-turn::before{content:'⤾';font-size:29px;transform:none}.pnlm-hotspot.tour-info::before{content:'i';font-family:Georgia,serif;font-size:23px;transform:none}
-.pnlm-hotspot.tour-nav.rot0{--turn:-90deg}.pnlm-hotspot.tour-nav.rot45{--turn:-45deg}.pnlm-hotspot.tour-nav.rot90{--turn:0deg}.pnlm-hotspot.tour-nav.rot270{--turn:180deg}.pnlm-hotspot.tour-nav.rot315{--turn:225deg}
-
-#navPad{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:18;pointer-events:none}
-#navPad .pad{position:relative;width:220px;height:170px}
-#navPad button{position:absolute;pointer-events:auto;width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,.9);background:rgba(11,76,98,.9);color:white;box-shadow:0 4px 14px rgba(0,0,0,.35);font-size:28px;font-weight:bold;cursor:pointer;display:none}
-#navPad button.show{display:grid;place-items:center}
-#navPad button:hover{background:rgba(21,111,141,.95)}
-#navPad button.turn{background:rgba(115,80,30,.92)}
-#navPad button.turn:hover{background:rgba(145,102,38,.95)}
-#navForward{top:0;left:50%;transform:translateX(-50%)}
-#navLeft{top:58px;left:24px}
-#navRight{top:58px;right:24px}
-#navTurn{bottom:0;left:50%;transform:translateX(-50%)}
-#navPadLabel{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);padding:5px 10px;border-radius:999px;background:rgba(15,24,32,.82);color:#fff;font-size:12px;white-space:nowrap;display:none}
-#navPadLabel.show{display:block}
-@media(max-width:600px){#controls{max-height:50vh;overflow:auto}#controls h1{font-size:14px}#navPad .pad{width:200px;height:156px}#navPad button{width:52px;height:52px;font-size:26px}#navLeft{left:18px}#navRight{right:18px}}
-
-/* Screen-anchored route controls: never rotate out of the panorama. */
-#routeBar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:40;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box;padding:10px 12px;border-radius:12px;background:rgba(15,24,32,.92);color:white;box-shadow:0 3px 14px #0007}
-#routeBarTitle{font-weight:bold;font-size:12px;margin-bottom:6px;text-align:center}
-#routeButtons{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-#routeButtons button{background:#126b83;color:white;border:1px solid #a9d7e4;border-radius:8px;padding:10px 14px;min-height:44px;font:600 14px Arial,sans-serif;cursor:pointer}
-#routeButtons button:hover,#routeButtons button:focus-visible{background:#208aa5;outline:2px solid white;outline-offset:2px}
-#routeButtons button.turn-button{background:#73501e;border-color:#f0d9b3}
-@media(max-width:600px){#routeBar{bottom:8px;width:calc(100vw - 16px);padding:8px}#routeButtons{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;padding:2px 2px 6px}#routeButtons button{flex:none;font-size:13px}}
-</style></head><body>
-<div id="panorama" aria-label="Interactive 360-degree tour of the makerspace"></div>
-<nav id="routeBar" aria-label="Move through the makerspace"><div id="routeBarTitle">Walking navigation — Scene 1</div><div id="routeButtons"></div></nav>
-<section id="controls" aria-label="Tour navigation controls"><button type="button" id="toggleControls">Hide</button><div id="bodyControls">
-<h1>Makerspace Virtual Tour</h1>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}
+#panorama{width:100%;height:100dvh}
+#controls{position:absolute;top:12px;left:12px;z-index:30;width:min(340px,calc(100vw - 24px));padding:12px;background:rgba(15,24,32,.9);color:#fff;border-radius:12px}
+#controls h1{font-size:16px;margin:0 0 8px}
+#controls label{font-size:12px;display:block;margin:8px 0 4px}
+#controls select{display:block;width:100%;padding:9px;border:0;border-radius:5px;background:#fff;color:#152832}
+#controls button{border:0;border-radius:6px;padding:8px 12px;margin-top:9px;cursor:pointer}
+#toggleControls{float:right;margin:0!important}
+#controls.collapsed #bodyControls{display:none}
+#editorPane{margin-top:9px;padding-top:7px;border-top:1px solid #667}
+#clickCoords{font-size:12px;overflow-wrap:anywhere}
+#navPanel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:25;background:rgba(15,24,32,.9);border:1px solid rgba(255,255,255,.24);color:white;border-radius:14px;padding:10px;box-shadow:0 4px 18px #0007;max-width:calc(100vw - 20px)}
+.navTitle{font-size:12px;text-align:center;margin:0 0 8px}
+.navHelp{font-size:11px;color:#d4e0e6;text-align:center;margin:6px 0 0}
+#turnButton{border:1px solid #e4d1a3;border-radius:8px;background:#76552a;color:white;padding:7px 12px;cursor:pointer;font-weight:bold}
+button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
+@media(max-width:600px){#controls{max-height:44dvh;overflow:auto}#navPanel{bottom:6px;padding:8px}#controls h1{font-size:14px}}
+</style><style>
+#navPanel{width:195px}
+#radar{width:169px;height:169px;position:relative;border-radius:50%;margin:auto;background:radial-gradient(circle,#244959 0 30%,#17333f 31% 65%,#10242e 66% 100%);border:1px solid #7e9aa5}
+#radar::after{content:'';position:absolute;left:50%;top:50%;height:44%;border-left:2px dashed #a2c4cd;transform:translateX(-50%);pointer-events:none;opacity:.5}
+#you{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#e4eff2;color:#143b4b;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:bold;z-index:3;border:2px solid #fff}
+#exits{position:absolute;inset:0}
+.exitMarker{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border:0;background:transparent;color:white;cursor:pointer;z-index:5;display:grid;place-items:center;padding:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+.exitMarker::before{content:'';position:absolute;inset:4px;border-radius:999px;background:rgba(22,126,148,.18);backdrop-filter:blur(1px)}
+.exitMarker:hover::before{background:rgba(29,162,187,.28)}
+.exitMarker .chevron{position:relative;display:block;width:11px;height:11px;border-top:2.5px solid #fff;border-right:2.5px solid #fff;transform:rotate(-45deg)}
+.exitMarker:hover .chevron{border-color:#e9fdff}
+#turnWrap{text-align:center;margin-top:7px}
+@media(max-width:600px){#navPanel{width:158px}#radar{width:134px;height:134px}.exitMarker{width:27px;height:27px}.exitMarker .chevron{width:10px;height:10px}#you{width:28px;height:28px;font-size:8px}}
+</style>
+</head><body>
+<div id="panorama" aria-label="360-degree makerspace panorama"></div>
+<section id="controls" aria-label="Tour controls">
+<button id="toggleControls" type="button" aria-expanded="true">Hide</button>
+<div id="bodyControls"><h1>Makerspace Virtual Tour</h1>
 <label for="equipmentSelect">Find equipment</label><select id="equipmentSelect"><option value="">Choose equipment…</option></select>
-<button type="button" id="start">Return to tour start</button>
-<div id="editorPane"><label for="viewSelect">Development: saved navigation view</label><select id="viewSelect"></select><p style="font-size:12px">For testing only. Every scene retains its physical exits. Use this menu to test arrival angles; click the panorama to read coordinates.</p><div id="clickCoords" aria-live="polite">No coordinates selected.</div></div>
-</div></section>
-<div id="navPad" aria-label="Walking navigation controls">
-  <div class="pad">
-    <div id="navPadLabel" aria-live="polite"></div>
-    <button type="button" id="navForward" title="Go forward" aria-label="Go forward">↑</button>
-    <button type="button" id="navLeft" title="Go left" aria-label="Go left">←</button>
-    <button type="button" id="navRight" title="Go right" aria-label="Go right">→</button>
-    <button type="button" id="navTurn" class="turn" title="Turn around" aria-label="Turn around">⤾</button>
-  </div>
-</div>
-
+<button id="start" type="button">Return to tour start</button>
+<div id="editorPane"><label for="viewSelect">Development: saved arrival view</label><select id="viewSelect"></select>
+<div id="clickCoords" aria-live="polite">Click the panorama to see coordinates.</div></div></div></section>
+<nav id="navPanel" aria-label="Directional compass">
+<div id="radar"><div id="exits"></div><div id="you">YOU ↑</div></div>
+<div id="turnWrap"><button id="turnButton" type="button">⤾ Turn around</button></div>
+</nav>
 <script>
 'use strict';
-// The two tables supplied for the makerspace tour; no original patron photographs are included.
 const views = {
   "s1start": {
     "label": "Scene 1 — Start, facing Scene 2",
@@ -465,8 +456,8 @@ const equipment = [
     "scene": "scene3",
     "pitch": -12.42492188,
     "yaw": -107.9406264,
-    "viewPitch": -11.65269766,
-    "viewYaw": -97.64630214,
+    "viewPitch": -18.159,
+    "viewYaw": -126.4614,
     "hfov": 120
   },
   {
@@ -474,8 +465,8 @@ const equipment = [
     "scene": "scene3",
     "pitch": -7.648620652,
     "yaw": -12.73617879,
-    "viewPitch": -3.149703657,
-    "viewYaw": -31.84990006,
+    "viewPitch": -11.1998,
+    "viewYaw": -8.8697,
     "hfov": 80.14337322
   },
   {
@@ -483,8 +474,8 @@ const equipment = [
     "scene": "scene5",
     "pitch": -29.4258873,
     "yaw": -159.0249759,
-    "viewPitch": -26.85309353,
-    "viewYaw": -169.7928854,
+    "viewPitch": -23.0855,
+    "viewYaw": 169.5031,
     "hfov": 96.10292637
   },
   {
@@ -525,12 +516,12 @@ const equipment = [
   },
   {
     "name": "US Cutter FLHP — Heat Press",
-    "scene": "scene8",
+    "scene": "scene7",
     "pitch": -12.66449679,
     "yaw": 23.67635475,
-    "viewPitch": -14.59305285,
-    "viewYaw": 17.64795298,
-    "hfov": 64.02851053
+    "viewPitch": -14.5095,
+    "viewYaw": 132.9604,
+    "hfov": 100
   },
   {
     "name": "Electronics Cart",
@@ -542,143 +533,126 @@ const equipment = [
     "hfov": 98.95486621
   }
 ];
-const sceneDefinitions = {};
-for (let i=1;i<=9;i++) sceneDefinitions[`scene${i}`]={type:'equirectangular',panorama:`R00100${16+i}E.jpg`,title:`Scene ${i}`,hotSpots:[]};
 
-// Use route-specific controls for navigation, not scene-wide text buttons.
-// This preserves your arrival views while keeping the controls fixed on screen.
-// Preserve all recorded routes, including the Scene 2 -> Scene 4 alternative.
-const enabledLinks = links.slice();
-const slotByLinkId = {
-  nav1:'forward', nav3:'forward', nav4:'left', nav5:'forward', nav6:'left',
-  nav8:'forward', nav9:'left', nav10:'forward', nav11:'left', nav12:'forward',
-  nav13:'left', nav14:'right', nav15:'forward', nav16:'forward', nav17:'right',
-  nav18:'forward', nav19:'forward', nav20:'forward', nav21:'forward', nav22:'forward',
-  nav23:'forward', nav24:'left', nav25:'right', nav26:'forward',
-  nav27:'left', nav28:'left', nav29:'left'
-};
-const turnTargets = {
-  s1start:'s1return', s1return:'s1start',
-  s2from1:'s2from3', s2from3:'s2from1', s2to4:'s2from3',
-  s3from2:'s3face2', s3face2:'s3from2',
-  s4from23:'s4from59', s4from59:'s4from23',
-  s5from4:'s5from6', s5from6:'s5from4',
-  s6from5:'s6from7', s6from7:'s6from5',
-  s7from6:'s7from8', s7from8:'s7from6',
-  s8from7:'s8from9', s8from9:'s8from7',
-  s9from8:'s9from45', s9from45:'s9from8'
-};
-const sceneDefaultPreset = {
-  scene1:'s1start', scene2:'s2from1', scene3:'s3face2', scene4:'s4from23',
-  scene5:'s5from4', scene6:'s6from5', scene7:'s7from6', scene8:'s8from7', scene9:'s9from8'
-};
-// Additional on-screen exits needed from the opposite arrival direction.
-// The target preset preserves the arrival camera orientation.
-enabledLinks.push(
-  {id:'nav27',source:'s2from3',target:'s4from23',kind:'move',rotation:270},
-  {id:'nav28',source:'s7from6',target:'s6from7',kind:'move',rotation:0},
-  {id:'nav29',source:'s8from7',target:'s7from8',kind:'move',rotation:0}
-);
-const linksBySource = {};
-for (const item of enabledLinks) {
-  if (item.kind === 'turn') continue; // turnaround handled by fixed turn button
-  (linksBySource[item.source] ||= []).push(item);
-}
+const sceneDefinitions={};
+for(let n=1;n<=9;n++)sceneDefinitions[`scene${n}`]={type:'equirectangular',panorama:`R00100${16+n}E.jpg`,title:`Scene ${n}`,hotSpots:[]};
 const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:120},scenes:sceneDefinitions});
+const sceneDefaults={scene1:'s1start',scene2:'s2from1',scene3:'s3from2',scene4:'s4from23',scene5:'s5from4',scene6:'s6from5',scene7:'s7from6',scene8:'s8from7',scene9:'s9from8'};
+const turnTargets={s1start:'s1return',s1return:'s1start',s2from1:'s2from3',s2from3:'s2from1',s2to4:'s2from3',s3from2:'s3face2',s3face2:'s3from2',s4from23:'s4from59',s4from59:'s4from23',s5from4:'s5from6',s5from6:'s5from4',s6from5:'s6from7',s6from7:'s6from5',s7from6:'s7from8',s7from8:'s7from6',s8from7:'s8from9',s8from9:'s8from7',s9from8:'s9from45',s9from45:'s9from8'};
+const navLinks=links.filter(l=>l.kind==='move' && l.id!=='nav6').map(x=>({...x}));
+// Fill gaps detected during the first screen-fixed test; coordinates use existing recorded directions.
+navLinks.push(
+  {id:'extra2to4',source:'s2from3',target:'s4from23',yaw:-52.14476,pitch:-33.32863,kind:'move'},
+  {id:'extra7to6',source:'s7from6',target:'s6from7',yaw:19.04463,pitch:48.68148,kind:'move'},
+  {id:'extra8to7',source:'s8from7',target:'s7from8',yaw:42.17169,pitch:-45.76201,kind:'move'}
+);
+const bearingAdjustments = {
+  nav4: -39,
+  nav5: 5,
+  nav11: -22,
+  nav12: -20,
+  nav13: -21,
+  nav16: 13,
+  nav17: 44,
+  nav21: -29,
+  nav24: -43,
+  nav25: 44,
+  nav26: -3,
+  extra2to4: -39,
+  extra7to6: -29,
+};
 let activePreset='s1start';
 const viewSelect=document.getElementById('viewSelect');
 const equipmentSelect=document.getElementById('equipmentSelect');
-const navForward=document.getElementById('navForward');
-const navLeft=document.getElementById('navLeft');
-const navRight=document.getElementById('navRight');
-const navTurn=document.getElementById('navTurn');
-const navPadLabel=document.getElementById('navPadLabel');
-Object.entries(views).forEach(([id,v])=>{const o=document.createElement('option');o.value=id;o.textContent=v.label;viewSelect.appendChild(o)});
-equipment.forEach((item,index)=>{const o=document.createElement('option');o.value=String(index);o.textContent=item.name;equipmentSelect.appendChild(o)});
-viewSelect.value='s1start';
-function routeLabel(item){
-  const sceneNum = views[item.target].scene.replace('scene','');
-  return item.kind === 'turn' ? 'Turn around' : `Go to Scene ${sceneNum}`;
-}
-function clearNavButtons(){
-  [navForward,navLeft,navRight,navTurn].forEach(btn=>{btn.classList.remove('show'); btn.onclick=null; btn.removeAttribute('data-target'); btn.dataset.label='';});
-  navPadLabel.classList.remove('show');
-}
-function assignNavButton(button, item){
-  if (!button || !item) return;
-  const label = routeLabel(item);
-  button.classList.add('show');
-  button.title = label;
-  button.setAttribute('aria-label', label);
-  button.dataset.label = label;
-  button.onclick = () => activateView(item.target, true);
-}
-function renderNavPad(){
-  clearNavButtons();
-  const preset = activePreset || sceneDefaultPreset[viewer.getScene()] || 's1start';
-  const scene = views[preset]?.scene || viewer.getScene();
-  const sceneNum = scene ? scene.replace('scene','') : '';
-  const sceneLinks = linksBySource[preset] || [];
-  const slotItems = {};
-  for (const item of sceneLinks) {
-    const slot = slotByLinkId[item.id] || 'forward';
-    if (!slotItems[slot]) slotItems[slot] = item;
+Object.entries(views).forEach(([key,v])=>{const opt=document.createElement('option');opt.value=key;opt.textContent=v.label;viewSelect.append(opt)});
+equipment.forEach((e,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=e.name;equipmentSelect.append(opt)});
+viewSelect.value=activePreset;
+function currentScene(){return viewer.getScene()||views[activePreset].scene}
+function chooseRoutes(){
+  const scene=currentScene(), options=new Map();
+  for (const link of navLinks){
+    if(views[link.source].scene!==scene)continue;
+    const destScene=views[link.target].scene;
+    const old=options.get(destScene);
+    // Prefer a link recorded for the actual arrival view, but keep every unique exit visible.
+    if(!old || (link.source===activePreset && old.source!==activePreset))options.set(destScene,link);
   }
-  assignNavButton(navForward, slotItems.forward);
-  assignNavButton(navLeft, slotItems.left);
-  assignNavButton(navRight, slotItems.right);
-  const turnTarget = turnTargets[preset];
-  if (turnTarget) {
-    navTurn.classList.add('show');
-    navTurn.title = 'Turn around';
-    navTurn.setAttribute('aria-label', 'Turn around');
-    navTurn.dataset.label = 'Turn around';
-    navTurn.onclick = () => activateView(turnTarget, true);
-  }
-  navPadLabel.textContent = `Walking navigation — Scene ${sceneNum}`;
-  navPadLabel.classList.add('show');
+  return [...options.values()].sort((a,b)=>Number(views[a.target].scene.slice(5))-Number(views[b.target].scene.slice(5)));
 }
-function activateView(id, animated = false) {
-  const v = views[id];
-  if (!v) return;
-  activePreset = id;
-  viewSelect.value = id;
-  equipmentSelect.value = '';
-  const done = () => renderNavPad();
-  if (viewer.getScene() === v.scene) {
-    viewer.lookAt(v.pitch, v.yaw, v.hfov, animated ? 1100 : 0);
-    done();
-  } else {
-    viewer.loadScene(v.scene, v.pitch, v.yaw, v.hfov);
-    // scenechange event will also fire, but render once immediately for responsiveness
-    setTimeout(done, 50);
-  }
+function goToView(key, animate=true){
+  const v=views[key];if(!v)return;
+  activePreset=key;viewSelect.value=key;equipmentSelect.value='';
+  if(currentScene()===v.scene)viewer.lookAt(v.pitch,v.yaw,v.hfov,animate?1000:0);
+  else viewer.loadScene(v.scene,v.pitch,v.yaw,v.hfov);
+  refreshNav();
 }
-viewSelect.addEventListener('change', () => activateView(viewSelect.value));
-document.getElementById('start').addEventListener('click', () => activateView('s1start', true));
-equipmentSelect.addEventListener('change', () => {
-  if (equipmentSelect.value === '') return;
-  const e = equipment[Number(equipmentSelect.value)];
-  // Keep navigation visible. If switching scenes, choose the scene's default navigation context.
-  if (viewer.getScene() !== e.scene) activePreset = sceneDefaultPreset[e.scene] || activePreset;
-  if (activePreset) viewSelect.value = activePreset;
-  const done = () => renderNavPad();
-  if (viewer.getScene() === e.scene) {
-    viewer.lookAt(e.viewPitch, e.viewYaw, e.hfov, 1100);
-    done();
-  } else {
-    viewer.loadScene(e.scene, e.viewPitch, e.viewYaw, e.hfov);
-    setTimeout(done, 50);
-  }
-});
-viewer.on('scenechange', renderNavPad);
+function jumpToEquipment(index){
+  const e=equipment[index];if(!e)return;
+  if(currentScene()!==e.scene)activePreset=sceneDefaults[e.scene];
+  viewSelect.value=activePreset;
+  if(currentScene()===e.scene)viewer.lookAt(e.viewPitch,e.viewYaw,e.hfov,1000);
+  else viewer.loadScene(e.scene,e.viewPitch,e.viewYaw,e.hfov);
+  refreshNav();
+}
+function turnAround(){
+  const alt=turnTargets[activePreset]||sceneDefaults[currentScene()];
+  if(alt && views[alt].scene===currentScene())goToView(alt);
+  else viewer.lookAt(viewer.getPitch(),viewer.getYaw()+180,viewer.getHfov(),1000);
+}
+document.getElementById('start').addEventListener('click',()=>goToView('s1start'));
+equipmentSelect.addEventListener('change',()=>{if(equipmentSelect.value!=='')jumpToEquipment(Number(equipmentSelect.value))});
+viewSelect.addEventListener('change',()=>goToView(viewSelect.value));
+const toggle=document.getElementById('toggleControls');
+toggle.addEventListener('click',()=>{const hidden=document.getElementById('controls').classList.toggle('collapsed');toggle.textContent=hidden?'Show':'Hide';toggle.setAttribute('aria-expanded',String(!hidden))});
 viewer.on('mousedown',ev=>{
- const result=viewer.mouseEventToCoords(ev);
- if(!result)return;
- const [p,y]=result;
- document.getElementById('clickCoords').textContent=`Scene ${viewer.getScene().replace('scene','')} | arrow Pitch: ${p.toFixed(5)}, Yaw: ${y.toFixed(5)}`;
+  const coords=viewer.mouseEventToCoords(ev);
+  if(coords)document.getElementById('clickCoords').textContent=`${currentScene()} | Pitch ${coords[0].toFixed(4)}° / Yaw ${coords[1].toFixed(4)}°`;
 });
-const controls=document.getElementById('controls');
-document.getElementById('toggleControls').addEventListener('click',()=>{const hide=controls.classList.toggle('collapsed');document.getElementById('toggleControls').textContent=hide?'Show':'Hide'});
-renderNavPad();
+
+const exitsEl=document.getElementById('exits');
+document.getElementById('turnButton').addEventListener('click',turnAround);
+let lastScene='',lastPreset='',lastYaw=null;
+function refreshNav(){
+  const scene=currentScene(), routes=chooseRoutes();
+  exitsEl.replaceChildren();
+  routes.forEach(route=>{
+    const button=document.createElement('button');
+    button.type='button';button.className='exitMarker';
+    const targetSceneNum = views[route.target].scene.slice(5);
+    button.innerHTML = '<span class="chevron" aria-hidden="true"></span>';
+    button.title = `Go to Scene ${targetSceneNum}`;
+    button.setAttribute("aria-label", button.title);
+    button.dataset.scene = targetSceneNum;
+    button.dataset.linkId = route.id;
+    const adjust = bearingAdjustments[route.id] || 0;
+    button.dataset.bearing = String(route.yaw + adjust);
+    button.addEventListener('click',()=>goToView(route.target));
+    exitsEl.appendChild(button);
+  });
+  lastScene=scene;lastPreset=activePreset;lastYaw=null;positionMarkers();
+}
+function positionMarkers(){
+  const scene=currentScene(),yaw=viewer.getYaw();
+  if(!Number.isFinite(yaw))return;
+  if(scene===lastScene && activePreset===lastPreset && yaw===lastYaw)return;
+  lastYaw=yaw;
+  const box=document.getElementById('radar');
+  const radius=(box.clientWidth/2)-(box.clientWidth > 150 ? 19 : 17);
+  exitsEl.querySelectorAll('button').forEach(button=>{
+    const rel=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
+    const x=box.clientWidth/2 + radius*Math.sin(rel);
+    const y=box.clientHeight/2 - radius*Math.cos(rel);
+    button.style.left=x+'px';
+    button.style.top=y+'px';
+    button.style.transform=`translate(-50%,-50%) rotate(${rel*180/Math.PI}deg)`;
+  });
+}
+function animateCompass(){
+  if(currentScene()!==lastScene || activePreset!==lastPreset)refreshNav();
+  else positionMarkers();
+  requestAnimationFrame(animateCompass);
+}
+viewer.on('scenechange',refreshNav);
+refreshNav();
+requestAnimationFrame(animateCompass);
 </script></body></html>
