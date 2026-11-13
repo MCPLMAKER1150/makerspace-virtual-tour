@@ -1,135 +1,327 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport"
-       content="width=device-width, initial-scale=1.0">
-<title>Makerspace Virtual Tour</title>
-<link rel="stylesheet"
-   href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css">
-<script
-   src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js">
-</script>
-<style>
-   html, body {
-     margin: 0;
-     width: 100%;
-     height: 100%;
-     font-family: Arial, sans-serif;
-   }
-   #panorama {
-     width: 100%;
-     height: 100vh;
-   }
-   #scene-menu {
-     position: absolute;
-     top: 15px;
-     left: 15px;
-     z-index: 10;
-     padding: 10px;
-     background: rgba(0, 0, 0, 0.75);
-     color: white;
-     border-radius: 6px;
-   }
-   #scene-select {
-     padding: 7px;
-     font-size: 14px;
-     max-width: 220px;
-   }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Makerspace Virtual Tour — Navigation Development</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css">
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js"></script>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; font-family: Arial, sans-serif; }
+    #panorama { width: 100%; height: 100vh; }
+    #editor { position: absolute; top: 12px; left: 12px; z-index: 15; color: white;
+      background: rgba(0, 0, 0, .85); padding: 12px; border-radius: 8px;
+      width: min(400px, calc(100vw - 48px)); box-sizing: border-box; }
+    #editor label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+    #view-select { width: 100%; padding: 9px; font-size: 14px; border-radius: 4px; }
+    #editor .help { margin: 9px 0 6px; font-size: 12px; line-height: 1.45; }
+    #coords { background: #151515; border-radius: 4px; padding: 9px; font-size: 13px;
+      overflow-wrap: anywhere; min-height: 18px; }
+    #editor button { margin-top: 8px; padding: 8px; border: 0; border-radius: 4px; cursor: pointer; }
+    #collapse { float: right; margin: 0 !important; padding: 3px 7px !important; }
+    #editor.collapsed #editor-content { display: none; }
+    @media (max-width: 600px) { #editor { max-height: 48vh; overflow-y: auto; } }
+  </style>
 </head>
 <body>
-<div id="panorama"
-      aria-label="Interactive makerspace tour">
-</div>
-<div id="scene-menu">
-<label for="scene-select">Location:</label>
-<select id="scene-select">
-<option value="scene1">Scene 1</option>
-<option value="scene2">Scene 2</option>
-<option value="scene3">Scene 3</option>
-<option value="scene4">Scene 4</option>
-<option value="scene5">Scene 5</option>
-<option value="scene6">Scene 6</option>
-<option value="scene7">Scene 7</option>
-<option value="scene8">Scene 8</option>
-<option value="scene9">Scene 9</option>
-</select>
-</div>
-<script>
-   const viewer = pannellum.viewer('panorama', {
-     default: {
-       firstScene: "scene1",
-       autoLoad: true,
-       sceneFadeDuration: 800,
-       hotSpotDebug: true
-     },
-     scenes: {
-       scene1: {
-         type: "equirectangular",
-         panorama: "R0010017E.jpg",
-         title: "Scene 1",
+  <div id="panorama" aria-label="Interactive 360-degree makerspace tour"></div>
+  <section id="editor" aria-label="Temporary tour development controls">
+    <button id="collapse" type="button" aria-label="Show or hide development controls">Hide</button>
+    <div id="editor-content">
+      <label for="view-select">Saved navigation view</label>
+      <select id="view-select"></select>
+      <p class="help">Select a view, then click (don't drag) where a navigation arrow should appear. Copy the clicked coordinates below. This is a development interface.</p>
+      <div id="coords" role="status" aria-live="polite">Click the panorama to record an arrow position.</div>
+      <button id="copy-coords" type="button">Copy recorded coordinates</button>
+    </div>
+  </section>
+  <script>
+    // These presets are viewing directions only, not arrow positions.
+    const navigationViews = [
+      {
+            "id": "view1",
+            "label": "Scene 1 — Tour start, facing Scene 2",
+            "scene": "scene1",
+            "pitch": -11.04408029,
+            "yaw": -3.048235599999998,
+            "hfov": 120
+      },
+      {
+            "id": "view2",
+            "label": "Scene 1 — Arriving from Scene 2, end of room",
+            "scene": "scene1",
+            "pitch": -11.65329968,
+            "yaw": -135.9664841,
+            "hfov": 120
+      },
+      {
+            "id": "view3",
+            "label": "Scene 2 — Arriving from Scene 1, facing Scene 3",
+            "scene": "scene2",
+            "pitch": -3.411760745,
+            "yaw": -1.7893924790000142,
+            "hfov": 120
+      },
+      {
+            "id": "view4",
+            "label": "Scene 2 — Arriving from Scene 3, facing Scene 1",
+            "scene": "scene2",
+            "pitch": 7.836006456,
+            "yaw": 173.1396909,
+            "hfov": 120
+      },
+      {
+            "id": "view5",
+            "label": "Scene 2 — Arriving from Scene 3, facing Scene 4",
+            "scene": "scene2",
+            "pitch": -5.456427564,
+            "yaw": -92.5881248,
+            "hfov": 120
+      },
+      {
+            "id": "view6",
+            "label": "Scene 3 — Arriving from Scene 2, end of room",
+            "scene": "scene3",
+            "pitch": -9.157168572,
+            "yaw": -19.66556564999999,
+            "hfov": 120
+      },
+      {
+            "id": "view7",
+            "label": "Scene 3 — Facing Scene 2",
+            "scene": "scene3",
+            "pitch": -16.26417924,
+            "yaw": -152.9583302,
+            "hfov": 120
+      },
+      {
+            "id": "view8",
+            "label": "Scene 3 — Facing Scene 4",
+            "scene": "scene3",
+            "pitch": -9.863146069,
+            "yaw": 163.4828367,
+            "hfov": 120
+      },
+      {
+            "id": "view9",
+            "label": "Scene 4 — Arriving from Scene 2 or 3",
+            "scene": "scene4",
+            "pitch": -9.40760173,
+            "yaw": -98.86704858,
+            "hfov": 120
+      },
+      {
+            "id": "view10",
+            "label": "Scene 4 — Arriving from Scene 5 or 9",
+            "scene": "scene4",
+            "pitch": -18.34138985,
+            "yaw": 68.93784793,
+            "hfov": 120
+      },
+      {
+            "id": "view11",
+            "label": "Scene 5 — Arriving from Scene 4, facing Scene 6",
+            "scene": "scene5",
+            "pitch": -12.49557607,
+            "yaw": -117.9953548,
+            "hfov": 120
+      },
+      {
+            "id": "view12",
+            "label": "Scene 5 — Arriving from Scene 6, facing Scenes 4 and 9",
+            "scene": "scene5",
+            "pitch": -16.75478198,
+            "yaw": 87.65773207000001,
+            "hfov": 120
+      },
+      {
+            "id": "view13",
+            "label": "Scene 6 — Arriving from Scene 5, facing Scene 7",
+            "scene": "scene6",
+            "pitch": -7.953968423,
+            "yaw": -171.4518174,
+            "hfov": 120
+      },
+      {
+            "id": "view14",
+            "label": "Scene 6 — Arriving from Scene 7, facing Scene 5",
+            "scene": "scene6",
+            "pitch": -11.29921778,
+            "yaw": 81.63834580000002,
+            "hfov": 120
+      },
+      {
+            "id": "view15",
+            "label": "Scene 7 — Arriving from Scene 6, facing Scene 8",
+            "scene": "scene7",
+            "pitch": -23.45626556,
+            "yaw": 121.92685040000003,
+            "hfov": 120
+      },
+      {
+            "id": "view16",
+            "label": "Scene 7 — Arriving from Scene 8, facing Scene 6",
+            "scene": "scene7",
+            "pitch": -35.15257792,
+            "yaw": -98.08008006,
+            "hfov": 120
+      },
+      {
+            "id": "view17",
+            "label": "Scene 8 — Arriving from Scene 7, facing Scene 9",
+            "scene": "scene8",
+            "pitch": -25.34338534,
+            "yaw": -157.8645236,
+            "hfov": 120
+      },
+      {
+            "id": "view18",
+            "label": "Scene 8 — Arriving from Scene 9, facing Scene 7",
+            "scene": "scene8",
+            "pitch": -23.28895129,
+            "yaw": 64.33027040000002,
+            "hfov": 120
+      },
+      {
+            "id": "view19",
+            "label": "Scene 9 — Arriving from Scene 8, facing Scenes 4 and 5",
+            "scene": "scene9",
+            "pitch": -20.46694897,
+            "yaw": 172.59951839999997,
+            "hfov": 120
+      },
+      {
+            "id": "view20",
+            "label": "Scene 9 — Arriving from Scene 4 or 5, facing Scene 8",
+            "scene": "scene9",
+            "pitch": 0,
+            "yaw": 0,
+            "hfov": 120
+      }
+];
 
-         hotSpots: [
-           {
-             pitch: -24.2166,
-             yaw: -6.2615,
-             type: "scene",
-             text: "Move to Scene 2",
-             sceneId: "scene2"
-           }
-         ]
-       },
-       scene2: {
-         type: "equirectangular",
-         panorama: "R0010018E.jpg",
-         title: "Scene 2"
-       },
-       scene3: {
-         type: "equirectangular",
-         panorama: "R0010019E.jpg",
-         title: "Scene 3"
-       },
-       scene4: {
-         type: "equirectangular",
-         panorama: "R0010020E.jpg",
-         title: "Scene 4"
-       },
-       scene5: {
-         type: "equirectangular",
-         panorama: "R0010021E.jpg",
-         title: "Scene 5"
-       },
-       scene6: {
-         type: "equirectangular",
-         panorama: "R0010022E.jpg",
-         title: "Scene 6"
-       },
-       scene7: {
-         type: "equirectangular",
-         panorama: "R0010023E.jpg",
-         title: "Scene 7"
-       },
-       scene8: {
-         type: "equirectangular",
-         panorama: "R0010024E.jpg",
-         title: "Scene 8"
-       },
-       scene9: {
-         type: "equirectangular",
-         panorama: "R0010025E.jpg",
-         title: "Scene 9"
-       }
-     }
-   });
-   const sceneSelect =
-     document.getElementById('scene-select');
-   sceneSelect.addEventListener('change', function() {
-     viewer.loadScene(this.value);
-   });
-   viewer.on('scenechange', function(sceneId) {
-     sceneSelect.value = sceneId;
-   });
-</script>
+    // All nine privacy-edited panoramas. The previously tested Scene 1 -> 2
+    // navigation hotspot is retained for convenience.
+    const viewer = pannellum.viewer('panorama', {
+      "default": {
+            "firstScene": "scene1",
+            "autoLoad": true,
+            "sceneFadeDuration": 800,
+            "pitch": -11.04408029,
+            "yaw": -3.048235599999998,
+            "hfov": 120,
+            "hotSpotDebug": true
+      },
+      "scenes": {
+            "scene1": {
+                  "type": "equirectangular",
+                  "panorama": "R0010017E.jpg",
+                  "title": "Scene 1",
+                  "hotSpots": [
+                        {
+                              "pitch": -24.2166,
+                              "yaw": -6.2615,
+                              "type": "scene",
+                              "text": "Move to Scene 2 (existing test arrow)",
+                              "sceneId": "scene2",
+                              "targetPitch": -3.411760745,
+                              "targetYaw": -1.7893924790000142,
+                              "targetHfov": 120
+                        }
+                  ]
+            },
+            "scene2": {
+                  "type": "equirectangular",
+                  "panorama": "R0010018E.jpg",
+                  "title": "Scene 2"
+            },
+            "scene3": {
+                  "type": "equirectangular",
+                  "panorama": "R0010019E.jpg",
+                  "title": "Scene 3"
+            },
+            "scene4": {
+                  "type": "equirectangular",
+                  "panorama": "R0010020E.jpg",
+                  "title": "Scene 4"
+            },
+            "scene5": {
+                  "type": "equirectangular",
+                  "panorama": "R0010021E.jpg",
+                  "title": "Scene 5"
+            },
+            "scene6": {
+                  "type": "equirectangular",
+                  "panorama": "R0010022E.jpg",
+                  "title": "Scene 6"
+            },
+            "scene7": {
+                  "type": "equirectangular",
+                  "panorama": "R0010023E.jpg",
+                  "title": "Scene 7"
+            },
+            "scene8": {
+                  "type": "equirectangular",
+                  "panorama": "R0010024E.jpg",
+                  "title": "Scene 8"
+            },
+            "scene9": {
+                  "type": "equirectangular",
+                  "panorama": "R0010025E.jpg",
+                  "title": "Scene 9"
+            }
+      }
+});
+    const selector = document.getElementById('view-select');
+    const coordsEl = document.getElementById('coords');
+    let lastCoordinates = '';
+    let selectedPreset = navigationViews[0];
+
+    navigationViews.forEach(view => {
+      const option = document.createElement('option');
+      option.value = view.id;
+      option.textContent = view.label;
+      selector.appendChild(option);
+    });
+
+    selector.addEventListener('change', () => {
+      const view = navigationViews.find(x => x.id === selector.value);
+      if (!view) return;
+      selectedPreset = view;
+      lastCoordinates = '';
+      coordsEl.textContent = 'Click the panorama to record an arrow position.';
+      if (viewer.getScene() === view.scene) {
+        viewer.lookAt(view.pitch, view.yaw, view.hfov, false);
+      } else {
+        viewer.loadScene(view.scene, view.pitch, view.yaw, view.hfov);
+      }
+    });
+
+    // Pannellum's official API converts the mouse click to spherical coords.
+    viewer.on('mousedown', event => {
+      const [pitch, yaw] = viewer.mouseEventToCoords(event);
+      const scene = viewer.getScene();
+      if (!Number.isFinite(pitch) || !Number.isFinite(yaw)) return;
+      lastCoordinates = `${selectedPreset.label} | ${scene} | arrow pitch: ${pitch.toFixed(5)} | arrow yaw: ${yaw.toFixed(5)}`;
+      coordsEl.textContent = lastCoordinates;
+    });
+
+    document.getElementById('copy-coords').addEventListener('click', async () => {
+      if (!lastCoordinates) return;
+      try {
+        await navigator.clipboard.writeText(lastCoordinates);
+      } catch (error) {
+        // Some embedded frames block clipboard access; text remains visible.
+        coordsEl.textContent = lastCoordinates + ' (Select and copy this text manually.)';
+      }
+    });
+    document.getElementById('collapse').addEventListener('click', () => {
+      const editor = document.getElementById('editor');
+      const collapsed = editor.classList.toggle('collapsed');
+      const button = document.getElementById('collapse');
+      button.textContent = collapsed ? 'Show' : 'Hide';
+      button.setAttribute('aria-label', collapsed ? 'Show development controls' : 'Hide development controls');
+    });
+  </script>
 </body>
 </html>
