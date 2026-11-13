@@ -524,7 +524,7 @@ function updateNavigation(){
  for(const item of links.filter(x=>x.source===activePreset)){
    const destination=views[item.target];
    const isTurn=item.kind==='turn';
-   const spot={id:item.id,pitch:item.pitch,yaw:item.yaw,type:'info',cssClass:isTurn?'tour-turn':`tour-nav rot${item.rotation}`,text:isTurn?'Turn around':`Move to ${destination.scene.replace('scene','Scene ')}`,
+   const spot={id:item.id,pitch:item.pitch,yaw:item.yaw,type:'info',cssClass:isTurn?'pnlm-hotspot tour-turn':`pnlm-hotspot tour-nav rot${item.rotation}`,text:isTurn?'Turn around':`Move to ${destination.scene.replace('scene','Scene ')}`,
        clickHandlerFunc:()=>activateView(item.target,true)};
    viewer.addHotSpot(spot,views[item.source].scene);
  }
