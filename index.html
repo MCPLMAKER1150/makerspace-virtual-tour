@@ -16,7 +16,7 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}
 #toggleControls{float:right;margin:0!important}
 #controls.collapsed #bodyControls{display:none}
 /* Hide the navy controls card completely when collapsed; leave only Show visible. */
-#controls.collapsed{width:auto;max-width:none;padding:0;background:transparent;border:0;box-shadow:none;overflow:visible}
+#controls.collapsed{left:auto;right:12px;width:auto;max-width:none;padding:0;background:transparent;border:0;box-shadow:none;overflow:visible}
 #controls.collapsed #toggleControls{float:none;margin:0!important;background:#1e2b4b;color:#fff;border:1px solid #e99c37;box-shadow:0 2px 8px #0005;border-radius:8px;padding:9px 13px}
 #controls.collapsed #toggleControls:hover{background:#2e3a58}
 
@@ -93,6 +93,22 @@ background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-siz
 #welcomeDone{border:0;border-radius:7px;padding:9px 16px;background:#e99c37;color:#1e2b4b;font-weight:700;cursor:pointer}
 @media(max-width:600px){#welcomeGuide{top:10px;left:50%;right:auto;transform:translateX(-50%);width:min(340px,calc(100vw - 20px))}}
 @media(prefers-reduced-motion:reduce){.equipmentMarker{transition:none}}
+
+/* On short, touch-controlled landscape embeds, the compass defaults to a
+   compact button so it doesn't cover the panorama. Tap to expand temporarily.
+   Normal desktop and portrait layouts are unchanged. */
+#landscapeCompassToggle{display:none}
+@media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
+  #navPanel{left:auto;right:8px;bottom:8px;transform:none}
+  #landscapeCompassToggle{display:block;min-height:44px;padding:8px 14px;
+    border:1px solid #e99c37;border-radius:8px;background:#1e2b4b;
+    color:#fff;font:600 13px Arial,sans-serif;cursor:pointer}
+  #navPanel.landscape-collapsed{width:auto;max-width:none;padding:0;
+    border:0;border-radius:8px;background:transparent;box-shadow:none}
+  #navPanel.landscape-collapsed #compassContents{display:none}
+  #navPanel:not(.landscape-collapsed) #landscapeCompassToggle{
+    margin:0 auto 6px;background:#2e3a58}
+}
 </style>
 </head><body>
 <div id="panorama" aria-label="360-degree makerspace panorama"></div>
@@ -243,9 +259,9 @@ background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-siz
 </section>
 </aside>
 <nav id="navPanel" aria-label="Directional compass">
-<div id="radar"><div id="exits"></div><div id="equipmentMarkers"></div><div id="you">YOU ↑</div></div>
-<div class="compactLegend" aria-hidden="true"><span><span class="legendArrow">⌃</span> Exit</span><span><span class="legendIcon"></span> Equipment</span></div>
-
+<button type="button" id="landscapeCompassToggle" aria-expanded="false" aria-controls="compassContents">Compass</button>
+<div id="compassContents"><div id="radar"><div id="exits"></div><div id="equipmentMarkers"></div><div id="you">YOU ↑</div></div>
+<div class="compactLegend" aria-hidden="true"><span><span class="legendArrow">⌃</span> Exit</span><span><span class="legendIcon"></span> Equipment</span></div></div>
 </nav>
 <script>
 'use strict';
@@ -901,6 +917,31 @@ equipmentSelect.addEventListener('change',()=>{if(equipmentSelect.value!=='')jum
 const toggle=document.getElementById('toggleControls');
 toggle.addEventListener('click',()=>{const hidden=document.getElementById('controls').classList.toggle('collapsed');toggle.textContent=hidden?'Show':'Hide';toggle.setAttribute('aria-expanded',String(!hidden))});
 
+// Compact the compass automatically on a short touch-screen landscape view.
+// Patrons can expand it when they need navigation; portrait and desktop unaffected.
+const landscapeCompassToggle=document.getElementById('landscapeCompassToggle');
+const navPanel=document.getElementById('navPanel');
+const compactLandscape=window.matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
+let lastLandscapeMode=null;
+function setLandscapeCompassCollapsed(collapsed){
+  navPanel.classList.toggle('landscape-collapsed',collapsed);
+  landscapeCompassToggle.setAttribute('aria-expanded',String(!collapsed));
+  landscapeCompassToggle.textContent=collapsed?'Compass':'Hide compass';
+  lastYaw=null; // A hidden radar has zero dimensions; recalculate after showing.
+  if(!collapsed)window.requestAnimationFrame(()=>positionMarkers());
+}
+function handleLandscapeCompassChange(){
+  if(compactLandscape.matches===lastLandscapeMode)return;
+  lastLandscapeMode=compactLandscape.matches;
+  setLandscapeCompassCollapsed(compactLandscape.matches);
+}
+landscapeCompassToggle.addEventListener('click',()=>{
+  setLandscapeCompassCollapsed(!navPanel.classList.contains('landscape-collapsed'));
+});
+compactLandscape.addEventListener('change',handleLandscapeCompassChange);
+window.addEventListener('resize',handleLandscapeCompassChange);
+handleLandscapeCompassChange();
+
 const exitsEl=document.getElementById('exits');
 const equipmentMarkersEl=document.getElementById('equipmentMarkers');
 // All equipment is displayed only on its own scene. A single marker represents
@@ -966,6 +1007,7 @@ function refreshNav(){
   lastScene=scene;lastPreset=activePreset;lastYaw=null;positionMarkers();
 }
 function positionMarkers(){
+  if(navPanel.classList.contains('landscape-collapsed'))return;
   const scene=currentScene(),yaw=viewer.getYaw();
   if(!Number.isFinite(yaw))return;
   if(scene===lastScene && activePreset===lastPreset && yaw===lastYaw)return;
