@@ -15,8 +15,6 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}
 #controls button{border:0;border-radius:6px;padding:8px 12px;margin-top:9px;cursor:pointer}
 #toggleControls{float:right;margin:0!important}
 #controls.collapsed #bodyControls{display:none}
-#editorPane{margin-top:9px;padding-top:7px;border-top:1px solid #667}
-#clickCoords{font-size:12px;overflow-wrap:anywhere}
 #navPanel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:25;background:rgba(30,43,75,.94);border:1px solid rgba(233,156,55,.44);color:white;border-radius:14px;padding:10px;box-shadow:0 4px 18px #0007;max-width:calc(100vw - 20px)}
 .navTitle{font-size:12px;text-align:center;margin:0 0 8px}
 .navHelp{font-size:11px;color:#d4e0e6;text-align:center;margin:6px 0 0}
@@ -73,6 +71,25 @@ border-bottom:1px solid rgba(255,255,255,.2);border-radius:13px 13px 0 0}
 background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-size:23px;line-height:1;cursor:pointer}
 #closeEquipmentPanel:hover{background:#3b4869}
 @media(max-width:600px){#equipmentPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}#equipmentPanelHeader{top:-16px;margin:-16px -16px 10px}}
+
+/* Phone-friendly interaction targets while preserving a small visible marker. */
+.exitMarker{width:42px;height:42px}
+.exitMarker::before{inset:9px}
+.equipmentMarker{width:42px;height:42px;border:0;box-shadow:none;background:transparent;color:#1e2b4b}
+.equipmentMarker::before{content:'';position:absolute;inset:8px;border-radius:50%;background:#e99c37;border:1.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);pointer-events:none}
+.equipmentMarker:hover,.equipmentMarker:focus-visible{background:transparent;border:0;outline:2px solid #e99c37;outline-offset:0}
+.equipmentMarker:hover::before,.equipmentMarker:focus-visible::before{background:white}
+.equipmentMarker svg{position:relative;z-index:1;width:15px;height:15px}
+#navPanel .compactLegend{margin-top:5px}
+@media(max-width:600px){#navPanel{width:180px}#radar{width:156px;height:156px}.exitMarker{width:42px;height:42px}.equipmentMarker{width:42px;height:42px}.equipmentMarker svg{width:14px;height:14px}}
+@media(pointer:coarse){.exitMarker,.equipmentMarker{min-width:44px;min-height:44px}}
+#welcomeGuide{position:absolute;z-index:39;top:12px;right:12px;width:min(340px,calc(100vw - 24px));border:1px solid #e99c37;background:rgba(30,43,75,.98);color:white;border-radius:12px;padding:16px;box-shadow:0 8px 22px #0008}
+#welcomeGuide[hidden]{display:none}
+#welcomeGuide h2{margin:0 0 8px;font-size:18px}
+#welcomeGuide p{font-size:14px;line-height:1.5;margin:0 0 12px}
+#welcomeDone{border:0;border-radius:7px;padding:9px 16px;background:#e99c37;color:#1e2b4b;font-weight:700;cursor:pointer}
+@media(max-width:600px){#welcomeGuide{top:10px;left:50%;right:auto;transform:translateX(-50%);width:min(340px,calc(100vw - 20px))}}
+@media(prefers-reduced-motion:reduce){.equipmentMarker{transition:none}}
 </style>
 </head><body>
 <div id="panorama" aria-label="360-degree makerspace panorama"></div>
@@ -80,11 +97,15 @@ background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-siz
 <button id="toggleControls" type="button" aria-expanded="true">Hide</button>
 <div id="bodyControls"><h1>Makerspace Virtual Tour</h1>
 <label for="equipmentSelect">Find equipment</label><select id="equipmentSelect"><option value="">Choose equipment…</option></select>
-<button id="start" type="button">Return to tour start</button>
-<div id="editorPane"><label for="viewSelect">Development: saved arrival view</label><select id="viewSelect"></select>
-<div id="clickCoords" aria-live="polite">Click the panorama to see coordinates.</div></div></div></section>
+<button id="start" type="button">Return to tour start</button> <button id="showHelp" type="button" aria-haspopup="dialog">Help</button>
+</div></section>
 
-<aside id="equipmentPanel" role="region" aria-label="Equipment information" hidden>
+<section id="welcomeGuide" aria-label="Tour instructions" hidden>
+<h2>Welcome to the Makerspace!</h2>
+<p>Drag or swipe to look around. Use white chevrons to move between scenes, or select a gold equipment icon to see a machine and its information.</p>
+<button type="button" id="welcomeDone">Got it</button>
+</section>
+<aside id="equipmentPanel" role="dialog" aria-modal="false" aria-label="Equipment information" tabindex="-1" hidden>
 <div id="equipmentPanelHeader"><button type="button" id="closeEquipmentPanel" aria-label="Close equipment information">×</button></div>
 <section class="equipmentInfoContent" data-equipment="0" hidden>
 <h2>Bambu Lab H2D</h2>
@@ -732,32 +753,64 @@ equipment.forEach((item,index)=>{
       div.addEventListener('keydown',function(ev){
         if(ev.key==='Enter'||ev.key===' '){
           ev.preventDefault();
-          openEquipmentInfo(index);
+          openEquipmentInfo(index,div);
         }
       });
     },
-    clickHandlerFunc:function(){openEquipmentInfo(index);}
+    clickHandlerFunc:function(){openEquipmentInfo(index,document.activeElement);}
   });
 });
-function openEquipmentInfo(index){
+let equipmentPanelOpener=null;
+function openEquipmentInfo(index, opener=null){
   const panel=document.getElementById('equipmentPanel');
   panel.querySelectorAll('.equipmentInfoContent').forEach(section=>{
     section.hidden=Number(section.dataset.equipment)!==index;
   });
+  equipmentPanelOpener=opener || pendingEquipmentOpener || document.activeElement;
+  // Navigation redraws compass markers. Return focus to the replacement marker
+  // when the original element is no longer attached to the page.
+  if(equipmentPanelOpener && !equipmentPanelOpener.isConnected){
+    equipmentPanelOpener=document.querySelector(`.equipmentMarker[data-equipment="${index}"]`) || equipmentSelect;
+  }
+  pendingEquipmentOpener=null;
+  panel.setAttribute('aria-label',`${equipment[index].name} information`);
   panel.hidden=false;
   panel.scrollTop=0;
   document.getElementById('closeEquipmentPanel').focus();
 }
-function closeEquipmentInfo(){document.getElementById('equipmentPanel').hidden=true;}
-document.getElementById('closeEquipmentPanel').addEventListener('click',closeEquipmentInfo);
-document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeEquipmentInfo();});
+function closeEquipmentInfo(restoreFocus=false){
+  const panel=document.getElementById('equipmentPanel');
+  if(panel.hidden)return;
+  panel.hidden=true;
+  const previous=equipmentPanelOpener;
+  equipmentPanelOpener=null;
+  if(restoreFocus && previous && previous.isConnected && typeof previous.focus==='function')previous.focus();
+}
+document.getElementById('closeEquipmentPanel').addEventListener('click',()=>closeEquipmentInfo(true));
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape' && !document.getElementById('equipmentPanel').hidden){ev.preventDefault();closeEquipmentInfo(true);}});
 // Limit horizontal field of view on phone-sized screens. Desktop presets remain unchanged.
 // Using min() preserves equipment views that were already zoomed in below 80°.
 const phoneViewport = window.matchMedia('(max-width: 600px)');
 const MOBILE_HFOV = 80;
+let preferredHfov=views.s1start.hfov;
+let lastWasMobile=phoneViewport.matches;
 function displayHfov(savedHfov) {
+  preferredHfov=savedHfov;
   return phoneViewport.matches ? Math.min(savedHfov, MOBILE_HFOV) : savedHfov;
 }
+function handleViewportChange(){
+  const isMobile=phoneViewport.matches;
+  if(isMobile===lastWasMobile)return;
+  lastWasMobile=isMobile;
+  // Restrict a newly narrow frame; restore the selected camera preset on widening
+  // only if its FOV was limited by the mobile cap.
+  if(isMobile){if(viewer.getHfov()>MOBILE_HFOV)viewer.setHfov(MOBILE_HFOV);}
+  else if(preferredHfov>MOBILE_HFOV && Math.abs(viewer.getHfov()-MOBILE_HFOV)<1){viewer.setHfov(preferredHfov);}
+  lastYaw=null;
+  positionMarkers();
+}
+phoneViewport.addEventListener('change',handleViewportChange);
+window.addEventListener('resize',handleViewportChange);
 const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:displayHfov(views.s1start.hfov)},scenes:sceneDefinitions});
 const sceneDefaults={scene1:'s1start',scene2:'s2from1',scene3:'s3from2',scene4:'s4from23',scene5:'s5from4',scene6:'s6from5',scene7:'s7from6',scene8:'s8from7',scene9:'s9from8'};
 const turnTargets={s1start:'s1return',s1return:'s1start',s2from1:'s2from3',s2from3:'s2from1',s2to4:'s2from3',s3from2:'s3face2',s3face2:'s3from2',s4from23:'s4from59',s4from59:'s4from23',s5from4:'s5from6',s5from6:'s5from4',s6from5:'s6from7',s6from7:'s6from5',s7from6:'s7from8',s7from8:'s7from6',s8from7:'s8from9',s8from9:'s8from7',s9from8:'s9from45',s9from45:'s9from8'};
@@ -784,11 +837,8 @@ const bearingAdjustments = {
   extra7to6: -29,
 };
 let activePreset='s1start';
-const viewSelect=document.getElementById('viewSelect');
 const equipmentSelect=document.getElementById('equipmentSelect');
-Object.entries(views).forEach(([key,v])=>{const opt=document.createElement('option');opt.value=key;opt.textContent=v.label;viewSelect.append(opt)});
 equipment.forEach((e,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=e.name;equipmentSelect.append(opt)});
-viewSelect.value=activePreset;
 function currentScene(){return viewer.getScene()||views[activePreset].scene}
 function chooseRoutes(){
   const scene=currentScene(), options=new Map();
@@ -801,17 +851,19 @@ function chooseRoutes(){
   }
   return [...options.values()].sort((a,b)=>Number(views[a.target].scene.slice(5))-Number(views[b.target].scene.slice(5)));
 }
+let pendingEquipmentOpener=null;
 let panelRequestToken = 0;
 let pendingEquipmentOnLoad = null;
 function cancelPendingEquipmentPanel() {
   ++panelRequestToken;
   pendingEquipmentOnLoad = null;
+  pendingEquipmentOpener=null;
   closeEquipmentInfo();
 }
 function goToView(key, animate=true){
   cancelPendingEquipmentPanel();
   const v=views[key];if(!v)return;
-  activePreset=key;viewSelect.value=key;equipmentSelect.value='';
+  activePreset=key;equipmentSelect.value='';
   if(currentScene()===v.scene)viewer.lookAt(v.pitch,v.yaw,displayHfov(v.hfov),animate?1000:0);
   else viewer.loadScene(v.scene,v.pitch,v.yaw,displayHfov(v.hfov));
   refreshNav();
@@ -820,10 +872,10 @@ function jumpToEquipment(index){
   const e=equipment[index];if(!e)return;
   cancelPendingEquipmentPanel();
   const requestToken=panelRequestToken;
+  pendingEquipmentOpener=document.activeElement;
   const sameScene=currentScene()===e.scene;
   if(!sameScene)activePreset=sceneDefaults[e.scene];
-  viewSelect.value=activePreset;
-  if(sameScene){
+    if(sameScene){
     viewer.lookAt(e.viewPitch,e.viewYaw,displayHfov(e.hfov),1000);
     // Wait for the focus animation before showing this machine's information.
     window.setTimeout(()=>{
@@ -848,13 +900,8 @@ function turnAround(){
 }
 document.getElementById('start').addEventListener('click',()=>goToView('s1start'));
 equipmentSelect.addEventListener('change',()=>{if(equipmentSelect.value!=='')jumpToEquipment(Number(equipmentSelect.value))});
-viewSelect.addEventListener('change',()=>goToView(viewSelect.value));
 const toggle=document.getElementById('toggleControls');
 toggle.addEventListener('click',()=>{const hidden=document.getElementById('controls').classList.toggle('collapsed');toggle.textContent=hidden?'Show':'Hide';toggle.setAttribute('aria-expanded',String(!hidden))});
-viewer.on('mousedown',ev=>{
-  const coords=viewer.mouseEventToCoords(ev);
-  if(coords)document.getElementById('clickCoords').textContent=`${currentScene()} | Pitch ${coords[0].toFixed(4)}° / Yaw ${coords[1].toFixed(4)}°`;
-});
 
 const exitsEl=document.getElementById('exits');
 const equipmentMarkersEl=document.getElementById('equipmentMarkers');
@@ -908,6 +955,7 @@ function refreshNav(){
     const button=document.createElement('button');
     button.type='button';
     button.className='equipmentMarker';
+    button.dataset.equipment=String(index);
     button.innerHTML=equipmentSymbolFor(index);
     button.title=`View ${item.name}`;
     button.setAttribute('aria-label',button.title);
@@ -926,21 +974,42 @@ function positionMarkers(){
   if(scene===lastScene && activePreset===lastPreset && yaw===lastYaw)return;
   lastYaw=yaw;
   const box=document.getElementById('radar');
-  const radius=(box.clientWidth/2)-(box.clientWidth > 150 ? 19 : 17);
+  const size=box.clientWidth;
+  const center=size/2;
+  const exitRadius=Math.max(48,center-20);
+  const equipmentRadius=size>160?37:35;
+  const exits=[];
   exitsEl.querySelectorAll('button').forEach(button=>{
-    const rel=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
-    const x=box.clientWidth/2 + radius*Math.sin(rel);
-    const y=box.clientHeight/2 - radius*Math.cos(rel);
-    button.style.left=x+'px';
-    button.style.top=y+'px';
-    button.style.transform=`translate(-50%,-50%) rotate(${rel*180/Math.PI}deg)`;
+    const angle=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
+    const x=center+exitRadius*Math.sin(angle), y=center-exitRadius*Math.cos(angle);
+    button.style.left=x+'px';button.style.top=y+'px';
+    button.style.transform=`translate(-50%,-50%) rotate(${angle*180/Math.PI}deg)`;
+    exits.push({x,y});
   });
-  const equipmentRadius=box.clientWidth > 150 ? 34 : 26;
-  equipmentMarkersEl.querySelectorAll('button').forEach(button=>{
-    const rel=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
-    button.style.left=(box.clientWidth/2 + equipmentRadius*Math.sin(rel))+'px';
-    button.style.top=(box.clientHeight/2 - equipmentRadius*Math.cos(rel))+'px';
-    // Equipment symbol should not rotate; it indicates a clickable machine.
+  // Keep equipment bearings as the source of truth. Adjust only the on-screen
+  // presentation when markers would otherwise obscure one another.
+  const placed=[];
+  equipmentMarkersEl.querySelectorAll('button').forEach((button,index)=>{
+    const base=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
+    const options=[0,10,-10,20,-20,30,-30,40,-40];
+    const radii=[equipmentRadius,equipmentRadius+8,equipmentRadius-7];
+    let best=null;
+    for(const offset of options){
+      for(const radius of radii){
+        const angle=base+offset*Math.PI/180;
+        const x=center+radius*Math.sin(angle),y=center-radius*Math.cos(angle);
+        const distances=[...exits.map(p=>Math.hypot(x-p.x,y-p.y)),
+          ...placed.map(p=>Math.hypot(x-p.x,y-p.y))];
+        const closest=distances.length?Math.min(...distances):100;
+        const overlap=Math.max(0,35-closest);
+        const cost=overlap*20+Math.abs(offset)*0.35+Math.abs(radius-equipmentRadius)*0.5;
+        if(!best || cost<best.cost)best={x,y,cost};
+      }
+    }
+    if(best){
+      button.style.left=best.x+'px';button.style.top=best.y+'px';
+      placed.push(best);
+    }
   });
 }
 function animateCompass(){
@@ -948,6 +1017,21 @@ function animateCompass(){
   else positionMarkers();
   requestAnimationFrame(animateCompass);
 }
+// The brief guide appears only on the first visit and can be reopened via Help.
+const welcomeGuide=document.getElementById('welcomeGuide');
+const welcomeDone=document.getElementById('welcomeDone');
+const showHelp=document.getElementById('showHelp');
+function dismissWelcome(){
+  welcomeGuide.hidden=true;
+  try{localStorage.setItem('makerspaceTourGuideSeenV1','1');}catch(err){}
+  showHelp.focus();
+}
+welcomeDone.addEventListener('click',dismissWelcome);
+welcomeGuide.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();dismissWelcome();}});
+showHelp.addEventListener('click',()=>{welcomeGuide.hidden=false;welcomeDone.focus();});
+try{welcomeGuide.hidden=localStorage.getItem('makerspaceTourGuideSeenV1')==='1';}
+catch(err){welcomeGuide.hidden=false;}
+
 viewer.on('scenechange',function(){closeEquipmentInfo();refreshNav();});
 refreshNav();
 requestAnimationFrame(animateCompass);
