@@ -922,6 +922,8 @@ toggle.addEventListener('click',()=>{const hidden=document.getElementById('contr
 const landscapeCompassToggle=document.getElementById('landscapeCompassToggle');
 const navPanel=document.getElementById('navPanel');
 const compactLandscape=window.matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
+// Initialize tracking before responsive controls may invalidate it.
+let lastScene='',lastPreset='',lastYaw=null;
 let lastLandscapeMode=null;
 function setLandscapeCompassCollapsed(collapsed){
   navPanel.classList.toggle('landscape-collapsed',collapsed);
@@ -969,7 +971,6 @@ const equipmentIconByIndex = ["cube", "bolt", "layers", "bolt", "layers", "peel"
 function equipmentSymbolFor(index) {
   return equipmentIconSvg[equipmentIconByIndex[index]] || equipmentIconSvg.printer;
 }
-let lastScene='',lastPreset='',lastYaw=null;
 function refreshNav(){
   const scene=currentScene(), routes=chooseRoutes();
   exitsEl.replaceChildren();
