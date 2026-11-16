@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Makerspace Virtual Tour — Compass prototype</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.css">
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.7/build/pannellum.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}
+#panorama{width:100%;height:100dvh}
+#controls{position:absolute;top:auto;bottom:12px;left:12px;z-index:30;width:min(340px,calc(100vw - 24px));padding:12px;background:rgba(30,43,75,.94);color:#fff;border-radius:12px}
+#controls h1{font-size:16px;margin:0 0 8px}
+#controls label{font-size:12px;display:block;margin:8px 0 4px}
+#controls select{display:block;width:100%;padding:9px;border:0;border-radius:5px;background:#fff;color:#152832}
+#controls button{border:0;border-radius:6px;padding:8px 12px;margin-top:9px;cursor:pointer}
+#toggleControls{float:right;margin:0!important}
+#controls.collapsed #bodyControls{display:none}
+/* Hide the navy controls card completely when collapsed; leave only Show visible. */
+#controls.collapsed{left:12px;right:auto;width:auto;max-width:none;padding:0;background:transparent;border:0;box-shadow:none;overflow:visible}
+#controls.collapsed #toggleControls{float:none;margin:0!important;background:#1e2b4b;color:#fff;border:1px solid #e99c37;box-shadow:0 2px 8px #0005;border-radius:8px;padding:9px 13px}
+#controls.collapsed #toggleControls:hover{background:#2e3a58}
+
+#navPanel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:25;background:rgba(30,43,75,.94);border:1px solid rgba(233,156,55,.44);color:white;border-radius:14px;padding:10px;box-shadow:0 4px 18px #0007;max-width:calc(100vw - 20px)}
+.navTitle{font-size:12px;text-align:center;margin:0 0 8px}
+.navHelp{font-size:11px;color:#d4e0e6;text-align:center;margin:6px 0 0}
+button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
+@media(max-width:600px){#controls{max-height:44dvh;overflow:auto}#navPanel{bottom:6px;padding:8px}#controls h1{font-size:14px}}
+</style><style>
+#navPanel{width:195px}
+#radar{width:169px;height:169px;position:relative;border-radius:50%;margin:auto;background:radial-gradient(circle,#2e3a58 0 30%,#293653 31% 65%,#1e2b4b 66% 100%);border:1px solid rgba(255,255,255,.62)}
+#radar::after{content:'';position:absolute;left:50%;top:50%;height:44%;border-left:2px dashed rgba(255,255,255,.58);transform:translateX(-50%);pointer-events:none;opacity:.5}
+#you{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;color:#1e2b4b;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:bold;z-index:3;border:2px solid #fff}
+#exits{position:absolute;inset:0}
+.exitMarker{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border:0;background:transparent;color:white;cursor:pointer;z-index:5;display:grid;place-items:center;padding:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+.exitMarker::before{content:'';position:absolute;inset:4px;border-radius:999px;background:rgba(255,255,255,.13);backdrop-filter:blur(1px)}
+.exitMarker:hover::before{background:rgba(233,156,55,.24)}
+.exitMarker .chevron{position:relative;display:block;width:11px;height:11px;border-top:2.5px solid #fff;border-right:2.5px solid #fff;transform:rotate(-45deg)}
+.exitMarker:hover .chevron{border-color:#e99c37}
+@media(max-width:600px){#navPanel{width:158px}#radar{width:134px;height:134px}.exitMarker{width:27px;height:27px}.exitMarker .chevron{width:10px;height:10px}#you{width:28px;height:28px;font-size:8px}}
+
+
+/* Makerspace brand palette from supplied image: navy #1E2B4B, slate #2E3A58,
+   white #FFFFFF, gold #E99C37. Scene exits stay white; equipment is gold. */
+#equipmentMarkers{position:absolute;inset:0;pointer-events:none}
+.equipmentMarker{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;
+  display:grid;place-items:center;padding:0;border:1.5px solid #fff;border-radius:50%;
+  color:#1e2b4b;background:#e99c37;box-shadow:0 2px 6px rgba(0,0,0,.45);
+  pointer-events:auto;cursor:pointer;z-index:6;transition:background-color .15s ease}
+.equipmentMarker:hover,.equipmentMarker:focus-visible{background:#fff;border-color:#e99c37;outline:2px solid #e99c37;outline-offset:1px}
+.equipmentMarker svg{width:15px;height:15px;display:block;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#navPanel .compactLegend{display:flex;align-items:center;justify-content:center;gap:12px;margin:7px 0 0;font-size:10px;color:#fff}
+#navPanel .legendIcon{display:inline-block;vertical-align:-2px;margin-right:4px;width:8px;height:8px;border-radius:50%;background:#e99c37}
+#navPanel .legendArrow{display:inline-block;margin-right:3px;font-size:15px;line-height:8px}
+@media(max-width:600px){.equipmentMarker{width:20px;height:20px}.equipmentMarker svg{width:12px;height:12px}#navPanel .compactLegend{gap:9px;font-size:9px}}
+
+/* Panorama information markers for all equipment; one marker covers both H2D printers. */
+.pnlm-hotspot.equipment-info-hotspot{width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:#2e3a58;box-shadow:0 3px 10px #0009;cursor:pointer;box-sizing:border-box;display:grid;place-items:center}
+.pnlm-hotspot.equipment-info-hotspot::before{content:'i';font:700 24px/1 Georgia,serif;color:white}
+.pnlm-hotspot.equipment-info-hotspot:hover,.pnlm-hotspot.equipment-info-hotspot:focus-visible{background:#1e2b4b;outline:2px solid #e99c37;outline-offset:2px}
+/* Keep the popup separate from the compass and the equipment selector. */
+#equipmentPanel{position:absolute;z-index:40;top:16px;right:16px;width:min(350px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border-radius:14px;padding:20px;color:#fff;background:rgba(30,43,75,.97);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 25px #0008}
+#equipmentPanel[hidden]{display:none}
+#equipmentPanel h2{font-size:20px;margin:0 38px 4px 0}
+#equipmentPanel p{line-height:1.5;font-size:14px;margin:10px 0}
+#equipmentPanel h3{font-size:14px;margin:14px 0 4px}
+#equipmentPanel .subhead{font-size:12px;color:#e4e6ea;margin:0 0 12px}
+#equipmentPanel .equipmentInfoContent[hidden]{display:none}
+#equipmentPanel .equipmentInfoContent p{white-space:normal}
+#equipmentPanel a{color:#e99c37}
+#equipmentPanelHeader{position:sticky;top:-20px;z-index:3;display:flex;justify-content:flex-end;align-items:center;
+background:rgba(30,43,75,.99);margin:-20px -20px 10px;padding:9px 10px;min-height:52px;
+border-bottom:1px solid rgba(255,255,255,.2);border-radius:13px 13px 0 0}
+#closeEquipmentPanel{position:relative;flex-shrink:0;border:1px solid rgba(255,255,255,.45);
+background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-size:23px;line-height:1;cursor:pointer}
+#closeEquipmentPanel:hover{background:#3b4869}
+@media(max-width:600px){#equipmentPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}#equipmentPanelHeader{top:-16px;margin:-16px -16px 10px}}
+
+/* Phone-friendly interaction targets while preserving a small visible marker. */
+.exitMarker{width:42px;height:42px}
+.exitMarker::before{inset:9px}
+.equipmentMarker{width:42px;height:42px;border:0;box-shadow:none;background:transparent;color:#1e2b4b}
+.equipmentMarker::before{content:'';position:absolute;inset:8px;border-radius:50%;background:#e99c37;border:1.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);pointer-events:none}
+.equipmentMarker:hover,.equipmentMarker:focus-visible{background:transparent;border:0;outline:2px solid #e99c37;outline-offset:0}
+.equipmentMarker:hover::before,.equipmentMarker:focus-visible::before{background:white}
+.equipmentMarker svg{position:relative;z-index:1;width:15px;height:15px}
+#navPanel .compactLegend{margin-top:5px}
+@media(max-width:600px){#navPanel{width:180px}#radar{width:156px;height:156px}.exitMarker{width:42px;height:42px}.equipmentMarker{width:42px;height:42px}.equipmentMarker svg{width:14px;height:14px}}
+@media(pointer:coarse){.exitMarker,.equipmentMarker{min-width:44px;min-height:44px}}
+#welcomeGuide{position:absolute;z-index:39;top:12px;right:12px;width:min(340px,calc(100vw - 24px));border:1px solid #e99c37;background:rgba(30,43,75,.98);color:white;border-radius:12px;padding:16px;box-shadow:0 8px 22px #0008}
+#welcomeGuide[hidden]{display:none}
+#welcomeGuide h2{margin:0 0 8px;font-size:18px}
+#welcomeGuide p{font-size:14px;line-height:1.5;margin:0 0 12px}
+#welcomeDone{border:0;border-radius:7px;padding:9px 16px;background:#e99c37;color:#1e2b4b;font-weight:700;cursor:pointer}
+@media(max-width:600px){#welcomeGuide{top:10px;left:50%;right:auto;transform:translateX(-50%);width:min(340px,calc(100vw - 20px))}}
+@media(prefers-reduced-motion:reduce){.equipmentMarker{transition:none}}
+
+/* On short, touch-controlled landscape embeds, the compass defaults to a
+   compact button so it doesn't cover the panorama. Tap to expand temporarily.
+   Normal desktop and portrait layouts are unchanged. */
+#landscapeCompassToggle{display:none}
+@media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
+  #navPanel{left:auto;right:8px;bottom:8px;transform:none}
+  #landscapeCompassToggle{display:block;min-height:44px;padding:8px 14px;
+    border:1px solid #e99c37;border-radius:8px;background:#1e2b4b;
+    color:#fff;font:600 13px Arial,sans-serif;cursor:pointer}
+  #navPanel.landscape-collapsed{width:auto;max-width:none;padding:0;
+    border:0;border-radius:8px;background:transparent;box-shadow:none}
+  #navPanel.landscape-collapsed #compassContents{display:none}
+  #navPanel:not(.landscape-collapsed) #landscapeCompassToggle{
+    margin:0 auto 6px;background:#2e3a58}
+}
+</style>
+</head><body>
+<div id="panorama" aria-label="360-degree makerspace panorama"></div>
+<section id="controls" aria-label="Tour controls">
+<button id="toggleControls" type="button" aria-expanded="true">Hide</button>
+<div id="bodyControls"><h1>Makerspace Virtual Tour</h1>
+<label for="equipmentSelect">Find equipment</label><select id="equipmentSelect"><option value="">Choose equipment…</option></select>
+<button id="start" type="button">Return to tour start</button> <button id="showHelp" type="button" aria-haspopup="dialog">Help</button>
+</div></section>
+
+<section id="welcomeGuide" aria-label="Tour instructions" hidden>
+<h2>Welcome to the Makerspace!</h2>
+<p>Drag or swipe to look around. Use white chevrons to move between scenes, or select a gold equipment icon to see a machine and its information.</p>
+<button type="button" id="welcomeDone">Got it</button>
+</section>
+<aside id="equipmentPanel" role="dialog" aria-modal="false" aria-label="Equipment information" tabindex="-1" hidden>
+<div id="equipmentPanelHeader"><button type="button" id="closeEquipmentPanel" aria-label="Close equipment information">×</button></div>
+<section class="equipmentInfoContent" data-equipment="0" hidden>
+<h2>Bambu Lab H2D</h2>
+<p class="subhead">Two identical FDM 3D printers</p>
+<h3>How It Works</h3>
+<p>Print Volume: 350mm x 320mm x 325mm</p>
+<h3>Cost</h3>
+<p>2 cents/gram of filament</p>
+<h3>Compatibility</h3>
+<p>Bambu Studio (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="1" hidden>
+<h2>MOPA Fiber Laser</h2>
+<h3>How It Works</h3>
+<p>Cutting Area: up to 11x11in</p>
+<p><strong>Approved Materials:</strong> aluminum, anodized aluminum, stainless steel, and slate</p>
+<h3>Compatibility</h3>
+<p>Lightburn (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="2" hidden>
+<h2>Anycubic Photon Mono X — MSLA Printer</h2>
+<h3>How It Works</h3>
+<p>Print Volume: 192x120x245mm</p>
+<h3>Cost</h3>
+<p>5 cents/gram of resin</p>
+<h3>Compatibility</h3>
+<p>Chitubox (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="3" hidden>
+<h2>Boss LS2440 — CO₂ Laser</h2>
+<h3>How It Works</h3>
+<p>Cutting Area: 24x40in</p>
+<p><strong>Approved Materials:</strong> acrylic, anodized aluminum, balsa wood, basswood, birch wood, birch plywood, cardboard, ceramic, glass, granite, leather, powder-coated metal, mirror - back side, paper, Romark-multicolored, rubber, foam, and tumblers</p>
+<h3>Compatibility</h3>
+<p>Lightburn (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="4" hidden>
+<h2>Peopoly Phenom — Resin Printer</h2>
+<h3>How It Works</h3>
+<p>Print Volume: 270x155x400mm</p>
+<h3>Cost</h3>
+<p>5 cents/gram of resin</p>
+<h3>Compatibility</h3>
+<p>Chitubox (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="5" hidden>
+<h2>Budget RL2700 — Laminator</h2>
+<h3>How It Works</h3>
+<p>Lamination Width: 25in</p>
+<h3>Cost</h3>
+<p>20 cents per foot</p>
+<h3>Compatibility</h3>
+<p>No software required</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy and waiver/release</p>
+</section>
+<section class="equipmentInfoContent" data-equipment="6" hidden>
+<h2>Brother SE1900 — Embroidery Machine</h2>
+<h3>How It Works</h3>
+<p>Embroidery size: 5x7in. Bobbins will be supplied, thread and stabilizer only included for training purposes.</p>
+<h3>Compatibility</h3>
+<p>Initial Stitch (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="7" hidden>
+<h2>Revopoint MetroY — 3D Scanner</h2>
+<h3>Information</h3>
+<p>Information coming soon.</p>
+</section>
+<section class="equipmentInfoContent" data-equipment="8" hidden>
+<h2>Graphtec CE6000-60 — Vinyl Cutter</h2>
+<h3>How It Works</h3>
+<p>Max Cutting Width: 23in</p>
+<h3>Cost</h3>
+<p>1.25 per foot of vinyl</p>
+<h3>Compatibility</h3>
+<p>Flexi (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="9" hidden>
+<h2>Epson SureColor T5770D — Large Format Printer</h2>
+<h3>How It Works</h3>
+<p>Max Print Width - 24in wide and 36in wide.</p>
+<h3>Cost</h3>
+<p>2 dollars/foot</p>
+<h3>Compatibility</h3>
+<p>PDF files only</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="10" hidden>
+<h2>US Cutter FLHP — Heat Press</h2>
+<h3>How It Works</h3>
+<p>Press Dimensions: 15x15in</p>
+<h3>Compatibility</h3>
+<p>No software required</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy and waiver/release</p>
+</section>
+<section class="equipmentInfoContent" data-equipment="11" hidden>
+<h2>Electronics Cart</h2>
+<h3>Warning</h3>
+<p>Must sign makerspace policy and waiver/release</p>
+</section>
+</aside>
+<nav id="navPanel" aria-label="Directional compass">
+<button type="button" id="landscapeCompassToggle" aria-expanded="false" aria-controls="compassContents">Compass</button>
+<div id="compassContents"><div id="radar"><div id="exits"></div><div id="equipmentMarkers"></div><div id="you">YOU ↑</div></div>
+<div class="compactLegend" aria-hidden="true"><span><span class="legendArrow">⌃</span> Exit</span><span><span class="legendIcon"></span> Equipment</span></div></div>
+</nav>
+<script>
+'use strict';
+const views = {
+  "s1start": {
+    "label": "Scene 1 — Start, facing Scene 2",
+    "scene": "scene1",
+    "pitch": -11.04408029,
+    "yaw": 356.9517644,
+    "hfov": 120
+  },
+  "s1return": {
+    "label": "Scene 1 — From Scene 2, end of room",
+    "scene": "scene1",
+    "pitch": -11.65329968,
+    "yaw": 224.0335159,
+    "hfov": 120
+  },
+  "s2from1": {
+    "label": "Scene 2 — From Scene 1, facing Scene 3",
+    "scene": "scene2",
+    "pitch": -3.411760745,
+    "yaw": -1.789392479,
+    "hfov": 120
+  },
+  "s2from3": {
+    "label": "Scene 2 — From Scene 3, facing Scene 1",
+    "scene": "scene2",
+    "pitch": 7.836006456,
+    "yaw": 173.1396909,
+    "hfov": 120
+  },
+  "s2to4": {
+    "label": "Scene 2 — From Scene 3, facing Scene 4",
+    "scene": "scene2",
+    "pitch": -5.456427564,
+    "yaw": 267.4118752,
+    "hfov": 120
+  },
+  "s3from2": {
+    "label": "Scene 3 — From Scene 2, end of room",
+    "scene": "scene3",
+    "pitch": -9.157168572,
+    "yaw": -19.66556565,
+    "hfov": 120
+  },
+  "s3face2": {
+    "label": "Scene 3 — Facing Scene 2 (and Scene 4)",
+    "scene": "scene3",
+    "pitch": -9.863146069,
+    "yaw": -196.5171633,
+    "hfov": 120
+  },
+  "s4from23": {
+    "label": "Scene 4 — From Scene 2 or 3",
+    "scene": "scene4",
+    "pitch": -9.40760173,
+    "yaw": -98.86704858,
+    "hfov": 120
+  },
+  "s4from59": {
+    "label": "Scene 4 — From Scene 5 or 9",
+    "scene": "scene4",
+    "pitch": -18.34138985,
+    "yaw": 68.93784793,
+    "hfov": 120
+  },
+  "s5from4": {
+    "label": "Scene 5 — From Scene 4, facing Scene 6",
+    "scene": "scene5",
+    "pitch": -12.49557607,
+    "yaw": -117.9953548,
+    "hfov": 120
+  },
+  "s5from6": {
+    "label": "Scene 5 — From Scene 6, facing Scenes 4 and 9",
+    "scene": "scene5",
+    "pitch": -16.75478198,
+    "yaw": 87.65773207,
+    "hfov": 120
+  },
+  "s6from5": {
+    "label": "Scene 6 — From Scene 5, facing Scene 7",
+    "scene": "scene6",
+    "pitch": -7.953968423,
+    "yaw": -171.4518174,
+    "hfov": 120
+  },
+  "s6from7": {
+    "label": "Scene 6 — From Scene 7, facing Scene 5",
+    "scene": "scene6",
+    "pitch": -11.29921778,
+    "yaw": -278.3616542,
+    "hfov": 120
+  },
+  "s7from6": {
+    "label": "Scene 7 — From Scene 6, facing Scene 8",
+    "scene": "scene7",
+    "pitch": -23.45626556,
+    "yaw": -238.0731496,
+    "hfov": 120
+  },
+  "s7from8": {
+    "label": "Scene 7 — From Scene 8, facing Scene 6",
+    "scene": "scene7",
+    "pitch": -35.15257792,
+    "yaw": -98.08008006,
+    "hfov": 120
+  },
+  "s8from7": {
+    "label": "Scene 8 — From Scene 7, facing Scene 9",
+    "scene": "scene8",
+    "pitch": -25.34338534,
+    "yaw": -157.8645236,
+    "hfov": 120
+  },
+  "s8from9": {
+    "label": "Scene 8 — From Scene 9, facing Scene 7",
+    "scene": "scene8",
+    "pitch": -23.28895129,
+    "yaw": -295.6697296,
+    "hfov": 120
+  },
+  "s9from8": {
+    "label": "Scene 9 — From Scene 8, facing Scenes 4 and 5",
+    "scene": "scene9",
+    "pitch": -20.46694897,
+    "yaw": -187.4004816,
+    "hfov": 120
+  },
+  "s9from45": {
+    "label": "Scene 9 — From Scene 4 or 5, facing Scene 8",
+    "scene": "scene9",
+    "pitch": 0,
+    "yaw": 0,
+    "hfov": 120
+  }
+};
+const links = [
+  {
+    "id": "nav1",
+    "source": "s1start",
+    "pitch": -34.68493,
+    "yaw": -3.39372,
+    "target": "s2from1",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav2",
+    "source": "s1return",
+    "pitch": -42.82363,
+    "yaw": -143.66529,
+    "target": "s1start",
+    "kind": "turn",
+    "rotation": 0
+  },
+  {
+    "id": "nav3",
+    "source": "s2from1",
+    "pitch": -38.01786,
+    "yaw": -2.76131,
+    "target": "s3from2",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav4",
+    "source": "s2from1",
+    "pitch": -33.32863,
+    "yaw": -52.14476,
+    "target": "s4from23",
+    "kind": "move",
+    "rotation": 270
+  },
+  {
+    "id": "nav5",
+    "source": "s2from3",
+    "pitch": -33.70083,
+    "yaw": 167.75225,
+    "target": "s1return",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav6",
+    "source": "s2to4",
+    "pitch": -49.80435,
+    "yaw": -86.18324,
+    "target": "s4from23",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav7",
+    "source": "s3from2",
+    "pitch": -44.34515,
+    "yaw": -19.90233,
+    "target": "s3face2",
+    "kind": "turn",
+    "rotation": 0
+  },
+  {
+    "id": "nav8",
+    "source": "s3face2",
+    "pitch": -49.12909,
+    "yaw": 168.62022,
+    "target": "s2from3",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav9",
+    "source": "s3face2",
+    "pitch": -49.12909,
+    "yaw": -154.62388,
+    "target": "s4from23",
+    "kind": "move",
+    "rotation": 45
+  },
+  {
+    "id": "nav10",
+    "source": "s4from23",
+    "pitch": -32.15834,
+    "yaw": -99.99535,
+    "target": "s5from4",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav11",
+    "source": "s4from23",
+    "pitch": -32.15834,
+    "yaw": -133.80294,
+    "target": "s9from45",
+    "kind": "move",
+    "rotation": 90
+  },
+  {
+    "id": "nav12",
+    "source": "s4from59",
+    "pitch": -58.0695,
+    "yaw": 96.2203,
+    "target": "s2to4",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav13",
+    "source": "s4from59",
+    "pitch": -29.0122,
+    "yaw": 42.53732,
+    "target": "s3face2",
+    "kind": "move",
+    "rotation": 270
+  },
+  {
+    "id": "nav14",
+    "source": "s4from59",
+    "pitch": -23.46763,
+    "yaw": 127.37581,
+    "target": "s1start",
+    "kind": "move",
+    "rotation": 90
+  },
+  {
+    "id": "nav15",
+    "source": "s5from4",
+    "pitch": -46.41487,
+    "yaw": -116.99795,
+    "target": "s6from5",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav16",
+    "source": "s5from6",
+    "pitch": -49.35519,
+    "yaw": 62.20722,
+    "target": "s4from59",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav17",
+    "source": "s5from6",
+    "pitch": -53.15357,
+    "yaw": 85.71156,
+    "target": "s9from45",
+    "kind": "move",
+    "rotation": 90
+  },
+  {
+    "id": "nav18",
+    "source": "s6from5",
+    "pitch": -30.7814,
+    "yaw": 171.45297,
+    "target": "s7from6",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav19",
+    "source": "s6from7",
+    "pitch": -40.84786,
+    "yaw": 84.49565,
+    "target": "s5from6",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav20",
+    "source": "s7from6",
+    "pitch": -52.02514,
+    "yaw": 103.31207,
+    "target": "s8from7",
+    "kind": "move",
+    "rotation": 315
+  },
+  {
+    "id": "nav21",
+    "source": "s7from8",
+    "pitch": 48.68148,
+    "yaw": 19.04463,
+    "target": "s6from7",
+    "kind": "move",
+    "rotation": 90
+  },
+  {
+    "id": "nav22",
+    "source": "s8from7",
+    "pitch": -32.94357,
+    "yaw": 138.69401,
+    "target": "s9from8",
+    "kind": "move",
+    "rotation": 315
+  },
+  {
+    "id": "nav23",
+    "source": "s8from9",
+    "pitch": -45.76201,
+    "yaw": 42.17169,
+    "target": "s7from8",
+    "kind": "move",
+    "rotation": 0
+  },
+  {
+    "id": "nav24",
+    "source": "s9from8",
+    "pitch": -55.86915,
+    "yaw": 150.83154,
+    "target": "s5from4",
+    "kind": "move",
+    "rotation": 270
+  },
+  {
+    "id": "nav25",
+    "source": "s9from8",
+    "pitch": -55.86915,
+    "yaw": -156.8099,
+    "target": "s4from59",
+    "kind": "move",
+    "rotation": 90
+  },
+  {
+    "id": "nav26",
+    "source": "s9from45",
+    "pitch": -42.21524,
+    "yaw": 1.65698,
+    "target": "s8from9",
+    "kind": "move",
+    "rotation": 0
+  }
+];
+const equipment = [
+  {
+    "name": "Bambu Lab H2D — FDM 3D Printers",
+    "scene": "scene1",
+    "pitch": -12.72777603,
+    "yaw": 164.6490771,
+    "viewPitch": -11.4215,
+    "viewYaw": 156.2554,
+    "hfov": 83.35105007
+  },
+  {
+    "name": "MOPA Fiber Laser",
+    "scene": "scene1",
+    "pitch": -13.50512105,
+    "yaw": -70.90668782,
+    "viewPitch": -18.29630209,
+    "viewYaw": 272.3668131,
+    "hfov": 120
+  },
+  {
+    "name": "Anycubic Photon Mono X — MSLA 3D Printer",
+    "scene": "scene2",
+    "pitch": -20.27294378,
+    "yaw": 101.5350079,
+    "viewPitch": -14.05498327,
+    "viewYaw": 86.22021506,
+    "hfov": 102.4227967
+  },
+  {
+    "name": "Boss LS2440 — CO₂ Laser Cutter",
+    "scene": "scene3",
+    "pitch": -12.42492188,
+    "yaw": -107.9406264,
+    "viewPitch": -18.782,
+    "viewYaw": -113.9237,
+    "hfov": 120
+  },
+  {
+    "name": "Peopoly Phenom — MSLA 3D Printer",
+    "scene": "scene3",
+    "pitch": -7.648620652,
+    "yaw": -12.73617879,
+    "viewPitch": -9.6944,
+    "viewYaw": -15.0712,
+    "hfov": 80.14337322
+  },
+  {
+    "name": "Budget RL2700 — Laminator",
+    "scene": "scene5",
+    "pitch": -29.4258873,
+    "yaw": -159.0249759,
+    "viewPitch": -27.3612,
+    "viewYaw": -173.3097,
+    "hfov": 96.10292637
+  },
+  {
+    "name": "Brother SE1900 — Embroidery Machine",
+    "scene": "scene5",
+    "pitch": -25.73191505,
+    "yaw": -47.7218035,
+    "viewPitch": -23.7798,
+    "viewYaw": -57.4034,
+    "hfov": 83.8833081
+  },
+  {
+    "name": "Revopoint MetroY — 3D Scanner",
+    "scene": "scene6",
+    "pitch": -13.81670843,
+    "yaw": 0.765619512,
+    "viewPitch": -15.7626874,
+    "viewYaw": -7.877292692,
+    "hfov": 63.71237216
+  },
+  {
+    "name": "Graphtec CE6000-60 — Vinyl Cutter",
+    "scene": "scene6",
+    "pitch": -19.86966601,
+    "yaw": -135.0707351,
+    "viewPitch": -25.66429637,
+    "viewYaw": -144.0142693,
+    "hfov": 82.43135132
+  },
+  {
+    "name": "Epson SureColor T5770D — Large Format Printer",
+    "scene": "scene7",
+    "pitch": -32.17408895,
+    "yaw": -82.66423923,
+    "viewPitch": -36.61734176,
+    "viewYaw": -98.08008006,
+    "hfov": 116.2905956
+  },
+  {
+    "name": "US Cutter FLHP — Heat Press",
+    "scene": "scene7",
+    "pitch": -12.66449679,
+    "yaw": 23.67635475,
+    "viewPitch": -16.1754,
+    "viewYaw": 134.2238,
+    "hfov": 100
+  },
+  {
+    "name": "Electronics Cart",
+    "scene": "scene8",
+    "pitch": -26.13113655,
+    "yaw": -144.2483228,
+    "viewPitch": -22.3510899,
+    "viewYaw": -155.3190622,
+    "hfov": 98.95486621
+  }
+];
+
+const sceneDefinitions={};
+for(let n=1;n<=9;n++)sceneDefinitions[`scene${n}`]={type:'equirectangular',panorama:`R00100${16+n}E.jpg`,hotSpots:[]};
+// One in-panorama information marker per equipment entry.
+// All except the relocated Scene 7 heat press use independently recorded hotspot bearings.
+// The heat press marker temporarily uses its Scene 7 viewing coordinates:
+// its original hotspot pitch/yaw belonged to Scene 8, not Scene 7.
+const equipmentHotspotPositionOverrides = {
+  10: {pitch:-16.1754, yaw:134.2238} // Heat press: provisional, refine when measured
+};
+equipment.forEach((item,index)=>{
+  const spotPosition=equipmentHotspotPositionOverrides[index] || item;
+  sceneDefinitions[item.scene].hotSpots.push({
+    id:`equipment-info-${index}`,
+    pitch:spotPosition.pitch,
+    yaw:spotPosition.yaw,
+    type:'info',
+    cssClass:'pnlm-hotspot equipment-info-hotspot',
+    createTooltipFunc:function(div){
+      div.setAttribute('role','button');
+      div.setAttribute('tabindex','0');
+      div.setAttribute('aria-label',`About ${item.name}`);
+      div.title=`About ${item.name}`;
+      div.addEventListener('keydown',function(ev){
+        if(ev.key==='Enter'||ev.key===' '){
+          ev.preventDefault();
+          openEquipmentInfo(index,div);
+        }
+      });
+    },
+    clickHandlerFunc:function(){openEquipmentInfo(index,document.activeElement);}
+  });
+});
+let equipmentPanelOpener=null;
+function openEquipmentInfo(index, opener=null){
+  const panel=document.getElementById('equipmentPanel');
+  panel.querySelectorAll('.equipmentInfoContent').forEach(section=>{
+    section.hidden=Number(section.dataset.equipment)!==index;
+  });
+  equipmentPanelOpener=opener || pendingEquipmentOpener || document.activeElement;
+  // Navigation redraws compass markers. Return focus to the replacement marker
+  // when the original element is no longer attached to the page.
+  if(equipmentPanelOpener && !equipmentPanelOpener.isConnected){
+    equipmentPanelOpener=document.querySelector(`.equipmentMarker[data-equipment="${index}"]`) || equipmentSelect;
+  }
+  pendingEquipmentOpener=null;
+  panel.setAttribute('aria-label',`${equipment[index].name} information`);
+  panel.hidden=false;
+  panel.scrollTop=0;
+  document.getElementById('closeEquipmentPanel').focus();
+}
+function closeEquipmentInfo(restoreFocus=false){
+  const panel=document.getElementById('equipmentPanel');
+  if(panel.hidden)return;
+  panel.hidden=true;
+  const previous=equipmentPanelOpener;
+  equipmentPanelOpener=null;
+  if(restoreFocus && previous && previous.isConnected && typeof previous.focus==='function')previous.focus();
+}
+document.getElementById('closeEquipmentPanel').addEventListener('click',()=>closeEquipmentInfo(true));
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape' && !document.getElementById('equipmentPanel').hidden){ev.preventDefault();closeEquipmentInfo(true);}});
+// Limit horizontal field of view on phone-sized screens. Desktop presets remain unchanged.
+// Using min() preserves equipment views that were already zoomed in below 80°.
+const phoneViewport = window.matchMedia('(max-width: 600px)');
+const MOBILE_HFOV = 80;
+let preferredHfov=views.s1start.hfov;
+let lastWasMobile=phoneViewport.matches;
+function displayHfov(savedHfov) {
+  preferredHfov=savedHfov;
+  return phoneViewport.matches ? Math.min(savedHfov, MOBILE_HFOV) : savedHfov;
+}
+function handleViewportChange(){
+  const isMobile=phoneViewport.matches;
+  if(isMobile===lastWasMobile)return;
+  lastWasMobile=isMobile;
+  // Restrict a newly narrow frame; restore the selected camera preset on widening
+  // only if its FOV was limited by the mobile cap.
+  if(isMobile){if(viewer.getHfov()>MOBILE_HFOV)viewer.setHfov(MOBILE_HFOV);}
+  else if(preferredHfov>MOBILE_HFOV && Math.abs(viewer.getHfov()-MOBILE_HFOV)<1){viewer.setHfov(preferredHfov);}
+  lastYaw=null;
+  positionMarkers();
+}
+phoneViewport.addEventListener('change',handleViewportChange);
+window.addEventListener('resize',handleViewportChange);
+const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:displayHfov(views.s1start.hfov)},scenes:sceneDefinitions});
+const sceneDefaults={scene1:'s1start',scene2:'s2from1',scene3:'s3from2',scene4:'s4from23',scene5:'s5from4',scene6:'s6from5',scene7:'s7from6',scene8:'s8from7',scene9:'s9from8'};
+const turnTargets={s1start:'s1return',s1return:'s1start',s2from1:'s2from3',s2from3:'s2from1',s2to4:'s2from3',s3from2:'s3face2',s3face2:'s3from2',s4from23:'s4from59',s4from59:'s4from23',s5from4:'s5from6',s5from6:'s5from4',s6from5:'s6from7',s6from7:'s6from5',s7from6:'s7from8',s7from8:'s7from6',s8from7:'s8from9',s8from9:'s8from7',s9from8:'s9from45',s9from45:'s9from8'};
+const navLinks=links.filter(l=>l.kind==='move' && l.id!=='nav6').map(x=>({...x}));
+// Fill gaps detected during the first screen-fixed test; coordinates use existing recorded directions.
+navLinks.push(
+  {id:'extra2to4',source:'s2from3',target:'s4from23',yaw:-52.14476,pitch:-33.32863,kind:'move'},
+  {id:'extra7to6',source:'s7from6',target:'s6from7',yaw:19.04463,pitch:48.68148,kind:'move'},
+  {id:'extra8to7',source:'s8from7',target:'s7from8',yaw:42.17169,pitch:-45.76201,kind:'move'}
+);
+const bearingAdjustments = {
+  nav4: -39,
+  nav5: 5,
+  nav11: -22,
+  nav12: -20,
+  nav13: -21,
+  nav16: 13,
+  nav17: 44,
+  nav21: -29,
+  nav24: -43,
+  nav25: 44,
+  nav26: -3,
+  extra2to4: -39,
+  extra7to6: -29,
+};
+let activePreset='s1start';
+const equipmentSelect=document.getElementById('equipmentSelect');
+equipment.forEach((e,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=e.name;equipmentSelect.append(opt)});
+function currentScene(){return viewer.getScene()||views[activePreset].scene}
+function chooseRoutes(){
+  const scene=currentScene(), options=new Map();
+  for (const link of navLinks){
+    if(views[link.source].scene!==scene)continue;
+    const destScene=views[link.target].scene;
+    const old=options.get(destScene);
+    // Prefer a link recorded for the actual arrival view, but keep every unique exit visible.
+    if(!old || (link.source===activePreset && old.source!==activePreset))options.set(destScene,link);
+  }
+  return [...options.values()].sort((a,b)=>Number(views[a.target].scene.slice(5))-Number(views[b.target].scene.slice(5)));
+}
+let pendingEquipmentOpener=null;
+let panelRequestToken = 0;
+let pendingEquipmentOnLoad = null;
+function cancelPendingEquipmentPanel() {
+  ++panelRequestToken;
+  pendingEquipmentOnLoad = null;
+  pendingEquipmentOpener=null;
+  closeEquipmentInfo();
+}
+function goToView(key, animate=true){
+  cancelPendingEquipmentPanel();
+  const v=views[key];if(!v)return;
+  activePreset=key;equipmentSelect.value='';
+  if(currentScene()===v.scene)viewer.lookAt(v.pitch,v.yaw,displayHfov(v.hfov),animate?1000:0);
+  else viewer.loadScene(v.scene,v.pitch,v.yaw,displayHfov(v.hfov));
+  refreshNav();
+}
+function jumpToEquipment(index){
+  const e=equipment[index];if(!e)return;
+  cancelPendingEquipmentPanel();
+  const requestToken=panelRequestToken;
+  pendingEquipmentOpener=document.activeElement;
+  const sameScene=currentScene()===e.scene;
+  if(!sameScene)activePreset=sceneDefaults[e.scene];
+    if(sameScene){
+    viewer.lookAt(e.viewPitch,e.viewYaw,displayHfov(e.hfov),1000);
+    // Wait for the focus animation before showing this machine's information.
+    window.setTimeout(()=>{
+      if(panelRequestToken===requestToken && currentScene()===e.scene)openEquipmentInfo(index);
+    },1050);
+  }else{
+    pendingEquipmentOnLoad={token:requestToken,scene:e.scene,index};
+    viewer.loadScene(e.scene,e.viewPitch,e.viewYaw,displayHfov(e.hfov));
+  }
+  refreshNav();
+}
+viewer.on('load',()=>{
+  const request=pendingEquipmentOnLoad;
+  if(!request || request.token!==panelRequestToken || currentScene()!==request.scene)return;
+  pendingEquipmentOnLoad=null;
+  openEquipmentInfo(request.index);
+});
+document.getElementById('start').addEventListener('click',()=>goToView('s1start'));
+equipmentSelect.addEventListener('change',()=>{if(equipmentSelect.value!=='')jumpToEquipment(Number(equipmentSelect.value))});
+const toggle=document.getElementById('toggleControls');
+toggle.addEventListener('click',()=>{const hidden=document.getElementById('controls').classList.toggle('collapsed');toggle.textContent=hidden?'Show':'Hide';toggle.setAttribute('aria-expanded',String(!hidden))});
+
+// Compact the compass automatically on a short touch-screen landscape view.
+// Patrons can expand it when they need navigation; portrait and desktop unaffected.
+const landscapeCompassToggle=document.getElementById('landscapeCompassToggle');
+const navPanel=document.getElementById('navPanel');
+const compactLandscape=window.matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
+// Initialize tracking before responsive controls may invalidate it.
+let lastScene='',lastPreset='',lastYaw=null;
+let lastLandscapeMode=null;
+function setLandscapeCompassCollapsed(collapsed){
+  navPanel.classList.toggle('landscape-collapsed',collapsed);
+  landscapeCompassToggle.setAttribute('aria-expanded',String(!collapsed));
+  landscapeCompassToggle.textContent=collapsed?'Compass':'Hide compass';
+  lastYaw=null; // A hidden radar has zero dimensions; recalculate after showing.
+  if(!collapsed)window.requestAnimationFrame(()=>positionMarkers());
+}
+function handleLandscapeCompassChange(){
+  if(compactLandscape.matches===lastLandscapeMode)return;
+  lastLandscapeMode=compactLandscape.matches;
+  setLandscapeCompassCollapsed(compactLandscape.matches);
+}
+landscapeCompassToggle.addEventListener('click',()=>{
+  setLandscapeCompassCollapsed(!navPanel.classList.contains('landscape-collapsed'));
+});
+compactLandscape.addEventListener('change',handleLandscapeCompassChange);
+window.addEventListener('resize',handleLandscapeCompassChange);
+handleLandscapeCompassChange();
+
+const exitsEl=document.getElementById('exits');
+const equipmentMarkersEl=document.getElementById('equipmentMarkers');
+// All equipment is displayed only on its own scene. A single marker represents
+// both H2D printers. The heat press marker cannot use its old Scene 8 bearing;
+// its Scene 7 view yaw is used until a separate Scene 7 hotspot yaw is measured.
+const equipmentMarkerYawOverrides = { 'US Cutter FLHP — Heat Press': 132.9604 };
+function equipmentBearing(e){
+  return Object.prototype.hasOwnProperty.call(equipmentMarkerYawOverrides,e.name)
+    ? equipmentMarkerYawOverrides[e.name] : e.yaw;
+}
+// Each machine has a recognisable icon; the two H2D printers share one marker.
+// Marker positions still use physical equipment bearings, not camera-view yaw.
+const equipmentIconSvg = {
+  "cube": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m12 2 9 5-9 5-9-5 9-5Z M3 7v10l9 5 9-5V7 M12 12v10\"/></svg>",
+  "bolt": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m13 2-10 12h8l-1 8 11-13h-8l0-7Z\"/></svg>",
+  "layers": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m12 3 9 5-9 5-9-5 9-5Z M3 12l9 5 9-5 M3 16l9 5 9-5\"/></svg>",
+  "peel": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M5 3h9l6 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z M14 3v5a1 1 0 0 0 1 1h5 M7 16h7\"/></svg>",
+  "shirt": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m8 3 4 2 4-2 5 4-3 4-2-1v11H8V10l-2 1-3-4 5-4Z\"/></svg>",
+  "scissors": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><circle cx=\"6\" cy=\"6\" r=\"2.5\"/><circle cx=\"6\" cy=\"18\" r=\"2.5\"/><path d=\"m8 8 12 12M8 16 20 4\"/></svg>",
+  "printer": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M6 9V3h12v6 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 15h12v7H6z M18 12h.01\"/></svg>",
+  "stamp": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M9 4a3 3 0 0 1 6 0v4l2 3v2H7v-2l2-3V4Z M5 16h14v5H5z M3 13h18\"/></svg>",
+  "cpu": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><rect x=\"5\" y=\"5\" width=\"14\" height=\"14\" rx=\"2\"/><rect x=\"9\" y=\"9\" width=\"6\" height=\"6\"/><path d=\"M9 1v4m6-4v4M9 19v4m6-4v4M1 9h4m-4 6h4m14-6h4m-4 6h4\"/></svg>"
+};
+const equipmentIconByIndex = ["cube", "bolt", "layers", "bolt", "layers", "peel", "shirt", "cube", "scissors", "printer", "stamp", "cpu"];
+function equipmentSymbolFor(index) {
+  return equipmentIconSvg[equipmentIconByIndex[index]] || equipmentIconSvg.printer;
+}
+function refreshNav(){
+  const scene=currentScene(), routes=chooseRoutes();
+  exitsEl.replaceChildren();
+  routes.forEach(route=>{
+    const button=document.createElement('button');
+    button.type='button';button.className='exitMarker';
+    const targetSceneNum = views[route.target].scene.slice(5);
+    button.innerHTML = '<span class="chevron" aria-hidden="true"></span>';
+    button.title = `Go to Scene ${targetSceneNum}`;
+    button.setAttribute("aria-label", button.title);
+    button.dataset.scene = targetSceneNum;
+    button.dataset.linkId = route.id;
+    const adjust = bearingAdjustments[route.id] || 0;
+    button.dataset.bearing = String(route.yaw + adjust);
+    button.addEventListener('click',()=>goToView(route.target));
+    exitsEl.appendChild(button);
+  });
+  equipmentMarkersEl.replaceChildren();
+  equipment.forEach((item,index)=>{
+    if(item.scene!==scene)return;
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='equipmentMarker';
+    button.dataset.equipment=String(index);
+    button.innerHTML=equipmentSymbolFor(index);
+    button.title=`View ${item.name}`;
+    button.setAttribute('aria-label',button.title);
+    button.dataset.bearing=String(equipmentBearing(item));
+    button.addEventListener('click',()=>{
+      jumpToEquipment(index);
+      equipmentSelect.value=String(index);
+    });
+    equipmentMarkersEl.appendChild(button);
+  });
+  lastScene=scene;lastPreset=activePreset;lastYaw=null;positionMarkers();
+}
+function positionMarkers(){
+  if(navPanel.classList.contains('landscape-collapsed'))return;
+  const scene=currentScene(),yaw=viewer.getYaw();
+  if(!Number.isFinite(yaw))return;
+  if(scene===lastScene && activePreset===lastPreset && yaw===lastYaw)return;
+  lastYaw=yaw;
+  const box=document.getElementById('radar');
+  const size=box.clientWidth;
+  const center=size/2;
+  const exitRadius=Math.max(48,center-20);
+  const equipmentRadius=size>160?37:35;
+  const exits=[];
+  exitsEl.querySelectorAll('button').forEach(button=>{
+    const angle=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
+    const x=center+exitRadius*Math.sin(angle), y=center-exitRadius*Math.cos(angle);
+    button.style.left=x+'px';button.style.top=y+'px';
+    button.style.transform=`translate(-50%,-50%) rotate(${angle*180/Math.PI}deg)`;
+    exits.push({x,y});
+  });
+  // Keep equipment bearings as the source of truth. Adjust only the on-screen
+  // presentation when markers would otherwise obscure one another.
+  const placed=[];
+  equipmentMarkersEl.querySelectorAll('button').forEach((button,index)=>{
+    const base=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
+    const options=[0,10,-10,20,-20,30,-30,40,-40];
+    const radii=[equipmentRadius,equipmentRadius+8,equipmentRadius-7];
+    let best=null;
+    for(const offset of options){
+      for(const radius of radii){
+        const angle=base+offset*Math.PI/180;
+        const x=center+radius*Math.sin(angle),y=center-radius*Math.cos(angle);
+        const distances=[...exits.map(p=>Math.hypot(x-p.x,y-p.y)),
+          ...placed.map(p=>Math.hypot(x-p.x,y-p.y))];
+        const closest=distances.length?Math.min(...distances):100;
+        const overlap=Math.max(0,35-closest);
+        const cost=overlap*20+Math.abs(offset)*0.35+Math.abs(radius-equipmentRadius)*0.5;
+        if(!best || cost<best.cost)best={x,y,cost};
+      }
+    }
+    if(best){
+      button.style.left=best.x+'px';button.style.top=best.y+'px';
+      placed.push(best);
+    }
+  });
+}
+function animateCompass(){
+  if(currentScene()!==lastScene || activePreset!==lastPreset)refreshNav();
+  else positionMarkers();
+  requestAnimationFrame(animateCompass);
+}
+// The brief guide appears only on the first visit and can be reopened via Help.
+const welcomeGuide=document.getElementById('welcomeGuide');
+const welcomeDone=document.getElementById('welcomeDone');
+const showHelp=document.getElementById('showHelp');
+function dismissWelcome(){
+  welcomeGuide.hidden=true;
+  try{localStorage.setItem('makerspaceTourGuideSeenV1','1');}catch(err){}
+  showHelp.focus();
+}
+welcomeDone.addEventListener('click',dismissWelcome);
+welcomeGuide.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();dismissWelcome();}});
+showHelp.addEventListener('click',()=>{welcomeGuide.hidden=false;welcomeDone.focus();});
+try{welcomeGuide.hidden=localStorage.getItem('makerspaceTourGuideSeenV1')==='1';}
+catch(err){welcomeGuide.hidden=false;}
+
+// Conservative JPEG neighbor prefetch (no multiresolution tiles).
+// The full-resolution photos and all tour coordinates are unchanged.
+// Pannellum loads the current scene first. When the visitor is idle, only
+// ONE adjacent scene JPEG is downloaded into the browser's normal HTTP cache.
+let jpegPrefetchTimer=null;
+let jpegPrefetchController=null;
+let jpegPrefetchGeneration=0;
+let priorSceneForPrefetch=null;
+let visibleSceneForPrefetch='scene1';
+const JPEG_IDLE_DELAY_MS=8000;
+const prefetchedJpegs=new Set();
+
+function stopJpegPrefetch(){
+  jpegPrefetchGeneration++;
+  if(jpegPrefetchTimer!==null){clearTimeout(jpegPrefetchTimer);jpegPrefetchTimer=null;}
+  if(jpegPrefetchController){jpegPrefetchController.abort();jpegPrefetchController=null;}
+}
+function jpegPrefetchAllowed(){
+  if(document.hidden)return false;
+  const connection=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+  if(connection && (connection.saveData || /^(slow-2g|2g)$/.test(connection.effectiveType||'')))return false;
+  return true;
+}
+function nextJpegNeighbor(){
+  const routes=chooseRoutes(); // Uses the same physical exits as the compass.
+  const candidates=routes.map(route=>views[route.target].scene)
+    .filter((scene,index,all)=>scene!==currentScene() && all.indexOf(scene)===index);
+  if(!candidates.length)return null;
+  // Prefer an onward exit over the scene the visitor just left.
+  return candidates.find(scene=>scene!==priorSceneForPrefetch) || candidates[0];
+}
+function scheduleJpegPrefetch(){
+  stopJpegPrefetch();
+  if(!jpegPrefetchAllowed())return;
+  const scene=currentScene();
+  const target=nextJpegNeighbor();
+  if(!target)return;
+  const url=sceneDefinitions[target].panorama;
+  if(prefetchedJpegs.has(url))return;
+  const generation=jpegPrefetchGeneration;
+  jpegPrefetchTimer=setTimeout(async()=>{
+    jpegPrefetchTimer=null;
+    if(generation!==jpegPrefetchGeneration || currentScene()!==scene || !jpegPrefetchAllowed())return;
+    const controller=new AbortController();
+    jpegPrefetchController=controller;
+    try{
+      // Same-origin GET: completed images can be reused from the browser cache
+      // when Pannellum subsequently requests the exact same JPEG URL.
+      const response=await fetch(url,{signal:controller.signal,cache:'force-cache'});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      await response.blob(); // Finish downloading the file before marking cached.
+      if(generation===jpegPrefetchGeneration)prefetchedJpegs.add(url);
+    }catch(err){
+      // Aborts are expected when someone moves around or changes scenes.
+      if(err.name!=='AbortError')console.debug('JPEG prefetch skipped:',err);
+    }finally{
+      if(jpegPrefetchController===controller)jpegPrefetchController=null;
+    }
+  },JPEG_IDLE_DELAY_MS);
+}
+// Cancel any background request immediately when leaving a scene.
+viewer.on('scenechange',function(){
+  stopJpegPrefetch();
+  const now=currentScene();
+  if(now!==visibleSceneForPrefetch){priorSceneForPrefetch=visibleSceneForPrefetch;visibleSceneForPrefetch=now;}
+});
+// Only begin idle countdown once the current panorama has loaded.
+viewer.on('load',scheduleJpegPrefetch);
+// Interacting with the panorama takes priority over background downloads.
+const panoramaEl=document.getElementById('panorama');
+panoramaEl.addEventListener('pointerdown',()=>stopJpegPrefetch(),{passive:true});
+panoramaEl.addEventListener('pointerup',()=>{
+  // Don't resume until the visitor has stopped interacting.
+  // This event can occur before the initial load; don't initiate a fetch then.
+  if(viewer.isLoaded && viewer.isLoaded())scheduleJpegPrefetch();
+},{passive:true});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)stopJpegPrefetch();
+  else if(viewer.isLoaded && viewer.isLoaded())scheduleJpegPrefetch();
+});
+
+viewer.on('scenechange',function(){closeEquipmentInfo();refreshNav();});
+refreshNav();
+requestAnimationFrame(animateCompass);
+</script></body></html>
