@@ -52,10 +52,10 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 #navPanel .legendArrow{display:inline-block;margin-right:3px;font-size:15px;line-height:8px}
 @media(max-width:600px){.equipmentMarker{width:20px;height:20px}.equipmentMarker svg{width:12px;height:12px}#navPanel .compactLegend{gap:9px;font-size:9px}}
 
-/* One shared information marker for both Bambu Lab H2D printers in Scene 1. */
-.pnlm-hotspot.bambu-info-hotspot{width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:#2e3a58;box-shadow:0 3px 10px #0009;cursor:pointer;box-sizing:border-box;display:grid;place-items:center}
-.pnlm-hotspot.bambu-info-hotspot::before{content:'i';font:700 24px/1 Georgia,serif;color:white}
-.pnlm-hotspot.bambu-info-hotspot:hover,.pnlm-hotspot.bambu-info-hotspot:focus-visible{background:#1e2b4b;outline:2px solid #e99c37;outline-offset:2px}
+/* Panorama information markers for all equipment; one marker covers both H2D printers. */
+.pnlm-hotspot.equipment-info-hotspot{width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:#2e3a58;box-shadow:0 3px 10px #0009;cursor:pointer;box-sizing:border-box;display:grid;place-items:center}
+.pnlm-hotspot.equipment-info-hotspot::before{content:'i';font:700 24px/1 Georgia,serif;color:white}
+.pnlm-hotspot.equipment-info-hotspot:hover,.pnlm-hotspot.equipment-info-hotspot:focus-visible{background:#1e2b4b;outline:2px solid #e99c37;outline-offset:2px}
 /* Keep the popup separate from the compass and the equipment selector. */
 #equipmentPanel{position:absolute;z-index:40;top:16px;right:16px;width:min(350px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border-radius:14px;padding:20px;color:#fff;background:rgba(30,43,75,.97);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 25px #0008}
 #equipmentPanel[hidden]{display:none}
@@ -66,9 +66,13 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 #equipmentPanel .equipmentInfoContent[hidden]{display:none}
 #equipmentPanel .equipmentInfoContent p{white-space:normal}
 #equipmentPanel a{color:#e99c37}
-#closeEquipmentPanel{position:absolute;right:10px;top:9px;border:0;background:#2e3a58;color:white;border-radius:50%;width:34px;height:34px;font-size:21px;cursor:pointer}
+#equipmentPanelHeader{position:sticky;top:-20px;z-index:3;display:flex;justify-content:flex-end;align-items:center;
+background:rgba(30,43,75,.99);margin:-20px -20px 10px;padding:9px 10px;min-height:52px;
+border-bottom:1px solid rgba(255,255,255,.2);border-radius:13px 13px 0 0}
+#closeEquipmentPanel{position:relative;flex-shrink:0;border:1px solid rgba(255,255,255,.45);
+background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-size:23px;line-height:1;cursor:pointer}
 #closeEquipmentPanel:hover{background:#3b4869}
-@media(max-width:600px){#equipmentPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}}
+@media(max-width:600px){#equipmentPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}#equipmentPanelHeader{top:-16px;margin:-16px -16px 10px}}
 </style>
 </head><body>
 <div id="panorama" aria-label="360-degree makerspace panorama"></div>
@@ -81,7 +85,7 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 <div id="clickCoords" aria-live="polite">Click the panorama to see coordinates.</div></div></div></section>
 
 <aside id="equipmentPanel" role="region" aria-label="Equipment information" hidden>
-<button type="button" id="closeEquipmentPanel" aria-label="Close equipment information">×</button>
+<div id="equipmentPanelHeader"><button type="button" id="closeEquipmentPanel" aria-label="Close equipment information">×</button></div>
 <section class="equipmentInfoContent" data-equipment="0" hidden>
 <h2>Bambu Lab H2D</h2>
 <p class="subhead">Two identical FDM 3D printers</p>
@@ -705,24 +709,35 @@ const equipment = [
 
 const sceneDefinitions={};
 for(let n=1;n<=9;n++)sceneDefinitions[`scene${n}`]={type:'equirectangular',panorama:`R00100${16+n}E.jpg`,title:`Scene ${n}`,hotSpots:[]};
-// A single Scene 1 marker represents both Bambu Lab H2D printers.
-// Coordinates are from the equipment hotspot table, not the camera view values.
-sceneDefinitions.scene1.hotSpots.push({
-  id:'bambu-h2d-info',
-  pitch:-12.72777603,
-  yaw:164.6490771,
-  type:'info',
-  cssClass:'pnlm-hotspot bambu-info-hotspot',
-  createTooltipFunc:function(div){
-    div.setAttribute('role','button');
-    div.setAttribute('tabindex','0');
-    div.setAttribute('aria-label','About the Bambu Lab H2D printers');
-    div.title='About the Bambu Lab H2D printers';
-    div.addEventListener('keydown',function(ev){
-      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openBambuInfo();}
-    });
-  },
-  clickHandlerFunc:function(){openBambuInfo();}
+// One in-panorama information marker per equipment entry.
+// All except the relocated Scene 7 heat press use independently recorded hotspot bearings.
+// The heat press marker temporarily uses its Scene 7 viewing coordinates:
+// its original hotspot pitch/yaw belonged to Scene 8, not Scene 7.
+const equipmentHotspotPositionOverrides = {
+  10: {pitch:-16.1754, yaw:134.2238} // Heat press: provisional, refine when measured
+};
+equipment.forEach((item,index)=>{
+  const spotPosition=equipmentHotspotPositionOverrides[index] || item;
+  sceneDefinitions[item.scene].hotSpots.push({
+    id:`equipment-info-${index}`,
+    pitch:spotPosition.pitch,
+    yaw:spotPosition.yaw,
+    type:'info',
+    cssClass:'pnlm-hotspot equipment-info-hotspot',
+    createTooltipFunc:function(div){
+      div.setAttribute('role','button');
+      div.setAttribute('tabindex','0');
+      div.setAttribute('aria-label',`About ${item.name}`);
+      div.title=`About ${item.name}`;
+      div.addEventListener('keydown',function(ev){
+        if(ev.key==='Enter'||ev.key===' '){
+          ev.preventDefault();
+          openEquipmentInfo(index);
+        }
+      });
+    },
+    clickHandlerFunc:function(){openEquipmentInfo(index);}
+  });
 });
 function openEquipmentInfo(index){
   const panel=document.getElementById('equipmentPanel');
@@ -730,14 +745,12 @@ function openEquipmentInfo(index){
     section.hidden=Number(section.dataset.equipment)!==index;
   });
   panel.hidden=false;
+  panel.scrollTop=0;
   document.getElementById('closeEquipmentPanel').focus();
 }
 function closeEquipmentInfo(){document.getElementById('equipmentPanel').hidden=true;}
 document.getElementById('closeEquipmentPanel').addEventListener('click',closeEquipmentInfo);
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeEquipmentInfo();});
-// Existing panorama hotspot for the two Bambu printers.
-function openBambuInfo(){openEquipmentInfo(0)}
-function closeBambuInfo(){closeEquipmentInfo()}
 // Limit horizontal field of view on phone-sized screens. Desktop presets remain unchanged.
 // Using min() preserves equipment views that were already zoomed in below 80°.
 const phoneViewport = window.matchMedia('(max-width: 600px)');
