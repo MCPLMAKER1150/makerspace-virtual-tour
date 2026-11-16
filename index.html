@@ -57,17 +57,18 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 .pnlm-hotspot.bambu-info-hotspot::before{content:'i';font:700 24px/1 Georgia,serif;color:white}
 .pnlm-hotspot.bambu-info-hotspot:hover,.pnlm-hotspot.bambu-info-hotspot:focus-visible{background:#1e2b4b;outline:2px solid #e99c37;outline-offset:2px}
 /* Keep the popup separate from the compass and the equipment selector. */
-#bambuPanel{position:absolute;z-index:40;top:16px;right:16px;width:min(350px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border-radius:14px;padding:20px;color:#fff;background:rgba(30,43,75,.97);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 25px #0008}
-#bambuPanel[hidden]{display:none}
-#bambuPanel h2{font-size:20px;margin:0 38px 4px 0}
-#bambuPanel p{line-height:1.5;font-size:14px;margin:10px 0}
-#bambuPanel h3{font-size:14px;margin:14px 0 4px}
-#bambuPanel .subhead{font-size:12px;color:#e4e6ea;margin:0 0 12px}
-#bambuPanel .spec{margin:10px 0;border-top:1px solid #68738c;padding-top:10px;font-size:13px}
-#bambuPanel a{color:#e99c37}
-#closeBambuPanel{position:absolute;right:10px;top:9px;border:0;background:#2e3a58;color:white;border-radius:50%;width:34px;height:34px;font-size:21px;cursor:pointer}
-#closeBambuPanel:hover{background:#3b4869}
-@media(max-width:600px){#bambuPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}}
+#equipmentPanel{position:absolute;z-index:40;top:16px;right:16px;width:min(350px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border-radius:14px;padding:20px;color:#fff;background:rgba(30,43,75,.97);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 25px #0008}
+#equipmentPanel[hidden]{display:none}
+#equipmentPanel h2{font-size:20px;margin:0 38px 4px 0}
+#equipmentPanel p{line-height:1.5;font-size:14px;margin:10px 0}
+#equipmentPanel h3{font-size:14px;margin:14px 0 4px}
+#equipmentPanel .subhead{font-size:12px;color:#e4e6ea;margin:0 0 12px}
+#equipmentPanel .equipmentInfoContent[hidden]{display:none}
+#equipmentPanel .equipmentInfoContent p{white-space:normal}
+#equipmentPanel a{color:#e99c37}
+#closeEquipmentPanel{position:absolute;right:10px;top:9px;border:0;background:#2e3a58;color:white;border-radius:50%;width:34px;height:34px;font-size:21px;cursor:pointer}
+#closeEquipmentPanel:hover{background:#3b4869}
+@media(max-width:600px){#equipmentPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}}
 </style>
 </head><body>
 <div id="panorama" aria-label="360-degree makerspace panorama"></div>
@@ -79,17 +80,139 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 <div id="editorPane"><label for="viewSelect">Development: saved arrival view</label><select id="viewSelect"></select>
 <div id="clickCoords" aria-live="polite">Click the panorama to see coordinates.</div></div></div></section>
 
-<aside id="bambuPanel" role="region" aria-labelledby="bambuTitle" hidden>
-  <button type="button" id="closeBambuPanel" aria-label="Close Bambu Lab printer information">×</button>
-  <h2 id="bambuTitle">Bambu Lab H2D</h2>
-  <p class="subhead">FDM 3D printing · Two identical printers in the makerspace</p>
-  <p>These printers build three-dimensional objects by depositing thin layers of melted plastic filament, one layer at a time.</p>
-  <h3>What can you make?</h3>
-  <p>Prototypes, organizers, custom parts, models, and other three-dimensional projects.</p>
-  <h3>What makes the H2D different?</h3>
-  <p>The H2D uses a dual-nozzle system, which supports prints involving two materials or colors, depending on the setup.</p>
-  <p class="spec"><strong>Maximum single-nozzle build volume:</strong> 325 × 320 × 325 mm. Actual usable space depends on the print mode.</p>
-  <p>Both printers are the same model, so one information marker covers the pair.</p>
+<aside id="equipmentPanel" role="region" aria-label="Equipment information" hidden>
+<button type="button" id="closeEquipmentPanel" aria-label="Close equipment information">×</button>
+<section class="equipmentInfoContent" data-equipment="0" hidden>
+<h2>Bambu Lab H2D</h2>
+<p class="subhead">Two identical FDM 3D printers</p>
+<h3>How It Works</h3>
+<p>Print Volume: 350mm x 320mm x 325mm</p>
+<h3>Cost</h3>
+<p>2 cents/gram of filament</p>
+<h3>Compatibility</h3>
+<p>Bambu Studio (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="1" hidden>
+<h2>MOPA Fiber Laser</h2>
+<h3>How It Works</h3>
+<p>Cutting Area: up to 11x11in</p>
+<p><strong>Approved Materials:</strong> aluminum, anodized aluminum, stainless steel, and slate</p>
+<h3>Compatibility</h3>
+<p>Lightburn (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="2" hidden>
+<h2>Anycubic Photon Mono X — MSLA Printer</h2>
+<h3>How It Works</h3>
+<p>Print Volume: 192x120x245mm</p>
+<h3>Cost</h3>
+<p>5 cents/gram of resin</p>
+<h3>Compatibility</h3>
+<p>Chitubox (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="3" hidden>
+<h2>Boss LS2440 — CO₂ Laser</h2>
+<h3>How It Works</h3>
+<p>Cutting Area: 24x40in</p>
+<p><strong>Approved Materials:</strong> acrylic, anodized aluminum, balsa wood, basswood, birch wood, birch plywood, cardboard, ceramic, glass, granite, leather, powder-coated metal, mirror - back side, paper, Romark-multicolored, rubber, foam, and tumblers</p>
+<h3>Compatibility</h3>
+<p>Lightburn (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="4" hidden>
+<h2>Peopoly Phenom — Resin Printer</h2>
+<h3>How It Works</h3>
+<p>Print Volume: 270x155x400mm</p>
+<h3>Cost</h3>
+<p>5 cents/gram of resin</p>
+<h3>Compatibility</h3>
+<p>Chitubox (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="5" hidden>
+<h2>Budget RL2700 — Laminator</h2>
+<h3>How It Works</h3>
+<p>Lamination Width: 25in</p>
+<h3>Cost</h3>
+<p>20 cents per foot</p>
+<h3>Compatibility</h3>
+<p>No software required</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy and waiver/release</p>
+</section>
+<section class="equipmentInfoContent" data-equipment="6" hidden>
+<h2>Brother SE1900 — Embroidery Machine</h2>
+<h3>How It Works</h3>
+<p>Embroidery size: 5x7in. Bobbins will be supplied, thread and stabilizer only included for training purposes.</p>
+<h3>Compatibility</h3>
+<p>Initial Stitch (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="7" hidden>
+<h2>Revopoint MetroY — 3D Scanner</h2>
+<h3>Information</h3>
+<p>Information coming soon.</p>
+</section>
+<section class="equipmentInfoContent" data-equipment="8" hidden>
+<h2>Graphtec CE6000-60 — Vinyl Cutter</h2>
+<h3>How It Works</h3>
+<p>Max Cutting Width: 23in</p>
+<h3>Cost</h3>
+<p>1.25 per foot of vinyl</p>
+<h3>Compatibility</h3>
+<p>Flexi (available on makerspace pcs)</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="9" hidden>
+<h2>Epson SureColor T5770D — Large Format Printer</h2>
+<h3>How It Works</h3>
+<p>Max Print Width - 24in wide and 36in wide.</p>
+<h3>Cost</h3>
+<p>2 dollars/foot</p>
+<h3>Compatibility</h3>
+<p>PDF files only</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy, waiver/release, and training documents</p>
+<h3>Resources</h3>
+<p><a href="https://www.marshallcolibrary.org/form/makerspace-equipment-training-re" target="_blank" rel="noopener noreferrer">Apply For Training</a></p>
+</section>
+<section class="equipmentInfoContent" data-equipment="10" hidden>
+<h2>US Cutter FLHP — Heat Press</h2>
+<h3>How It Works</h3>
+<p>Press Dimensions: 15x15in</p>
+<h3>Compatibility</h3>
+<p>No software required</p>
+<h3>Warning</h3>
+<p>Must sign makerspace policy and waiver/release</p>
+</section>
+<section class="equipmentInfoContent" data-equipment="11" hidden>
+<h2>Electronics Cart</h2>
+<h3>Warning</h3>
+<p>Must sign makerspace policy and waiver/release</p>
+</section>
 </aside>
 <nav id="navPanel" aria-label="Directional compass">
 <div id="radar"><div id="exits"></div><div id="equipmentMarkers"></div><div id="you">YOU ↑</div></div>
@@ -475,8 +598,8 @@ const equipment = [
     "scene": "scene1",
     "pitch": -12.72777603,
     "yaw": 164.6490771,
-    "viewPitch": -9.047,
-    "viewYaw": 162.7062,
+    "viewPitch": -11.4215,
+    "viewYaw": 156.2554,
     "hfov": 83.35105007
   },
   {
@@ -502,8 +625,8 @@ const equipment = [
     "scene": "scene3",
     "pitch": -12.42492188,
     "yaw": -107.9406264,
-    "viewPitch": -16.4756,
-    "viewYaw": -81.2801,
+    "viewPitch": -18.782,
+    "viewYaw": -113.9237,
     "hfov": 120
   },
   {
@@ -520,8 +643,8 @@ const equipment = [
     "scene": "scene5",
     "pitch": -29.4258873,
     "yaw": -159.0249759,
-    "viewPitch": -28.2664,
-    "viewYaw": -151.1045,
+    "viewPitch": -27.3612,
+    "viewYaw": -173.3097,
     "hfov": 96.10292637
   },
   {
@@ -529,8 +652,8 @@ const equipment = [
     "scene": "scene5",
     "pitch": -25.73191505,
     "yaw": -47.7218035,
-    "viewPitch": -21.56415122,
-    "viewYaw": -54.29047091,
+    "viewPitch": -23.7798,
+    "viewYaw": -57.4034,
     "hfov": 83.8833081
   },
   {
@@ -565,8 +688,8 @@ const equipment = [
     "scene": "scene7",
     "pitch": -12.66449679,
     "yaw": 23.67635475,
-    "viewPitch": -14.5095,
-    "viewYaw": 132.9604,
+    "viewPitch": -16.1754,
+    "viewYaw": 134.2238,
     "hfov": 100
   },
   {
@@ -601,14 +724,20 @@ sceneDefinitions.scene1.hotSpots.push({
   },
   clickHandlerFunc:function(){openBambuInfo();}
 });
-function openBambuInfo(){
-  const panel=document.getElementById('bambuPanel');
+function openEquipmentInfo(index){
+  const panel=document.getElementById('equipmentPanel');
+  panel.querySelectorAll('.equipmentInfoContent').forEach(section=>{
+    section.hidden=Number(section.dataset.equipment)!==index;
+  });
   panel.hidden=false;
-  document.getElementById('closeBambuPanel').focus();
+  document.getElementById('closeEquipmentPanel').focus();
 }
-function closeBambuInfo(){document.getElementById('bambuPanel').hidden=true;}
-document.getElementById('closeBambuPanel').addEventListener('click',closeBambuInfo);
-document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeBambuInfo();});
+function closeEquipmentInfo(){document.getElementById('equipmentPanel').hidden=true;}
+document.getElementById('closeEquipmentPanel').addEventListener('click',closeEquipmentInfo);
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeEquipmentInfo();});
+// Existing panorama hotspot for the two Bambu printers.
+function openBambuInfo(){openEquipmentInfo(0)}
+function closeBambuInfo(){closeEquipmentInfo()}
 // Limit horizontal field of view on phone-sized screens. Desktop presets remain unchanged.
 // Using min() preserves equipment views that were already zoomed in below 80°.
 const phoneViewport = window.matchMedia('(max-width: 600px)');
@@ -660,11 +789,11 @@ function chooseRoutes(){
   return [...options.values()].sort((a,b)=>Number(views[a.target].scene.slice(5))-Number(views[b.target].scene.slice(5)));
 }
 let panelRequestToken = 0;
-let pendingBambuOnLoad = null;
+let pendingEquipmentOnLoad = null;
 function cancelPendingEquipmentPanel() {
   ++panelRequestToken;
-  pendingBambuOnLoad = null;
-  closeBambuInfo();
+  pendingEquipmentOnLoad = null;
+  closeEquipmentInfo();
 }
 function goToView(key, animate=true){
   cancelPendingEquipmentPanel();
@@ -677,30 +806,27 @@ function goToView(key, animate=true){
 function jumpToEquipment(index){
   const e=equipment[index];if(!e)return;
   cancelPendingEquipmentPanel();
-  const requestToken = panelRequestToken;
-  const sameScene = currentScene()===e.scene;
+  const requestToken=panelRequestToken;
+  const sameScene=currentScene()===e.scene;
   if(!sameScene)activePreset=sceneDefaults[e.scene];
   viewSelect.value=activePreset;
   if(sameScene){
     viewer.lookAt(e.viewPitch,e.viewYaw,displayHfov(e.hfov),1000);
-    if(index===0){
-      // Delay until the camera finishes its 1-second focus animation.
-      window.setTimeout(()=>{
-        if(panelRequestToken===requestToken && currentScene()===e.scene)openBambuInfo();
-      },1050);
-    }
+    // Wait for the focus animation before showing this machine's information.
+    window.setTimeout(()=>{
+      if(panelRequestToken===requestToken && currentScene()===e.scene)openEquipmentInfo(index);
+    },1050);
   }else{
-    if(index===0)pendingBambuOnLoad={token:requestToken,scene:e.scene};
+    pendingEquipmentOnLoad={token:requestToken,scene:e.scene,index};
     viewer.loadScene(e.scene,e.viewPitch,e.viewYaw,displayHfov(e.hfov));
   }
   refreshNav();
 }
-// For a cross-scene equipment selection, open only after its panorama has loaded.
 viewer.on('load',()=>{
-  const request=pendingBambuOnLoad;
+  const request=pendingEquipmentOnLoad;
   if(!request || request.token!==panelRequestToken || currentScene()!==request.scene)return;
-  pendingBambuOnLoad=null;
-  openBambuInfo();
+  pendingEquipmentOnLoad=null;
+  openEquipmentInfo(request.index);
 });
 function turnAround(){
   const alt=turnTargets[activePreset]||sceneDefaults[currentScene()];
@@ -809,7 +935,7 @@ function animateCompass(){
   else positionMarkers();
   requestAnimationFrame(animateCompass);
 }
-viewer.on('scenechange',function(){closeBambuInfo();refreshNav();});
+viewer.on('scenechange',function(){closeEquipmentInfo();refreshNav();});
 refreshNav();
 requestAnimationFrame(animateCompass);
 </script></body></html>
