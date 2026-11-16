@@ -15,10 +15,14 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}
 #controls button{border:0;border-radius:6px;padding:8px 12px;margin-top:9px;cursor:pointer}
 #toggleControls{float:right;margin:0!important}
 #controls.collapsed #bodyControls{display:none}
+/* Hide the navy controls card completely when collapsed; leave only Show visible. */
+#controls.collapsed{width:auto;max-width:none;padding:0;background:transparent;border:0;box-shadow:none;overflow:visible}
+#controls.collapsed #toggleControls{float:none;margin:0!important;background:#1e2b4b;color:#fff;border:1px solid #e99c37;box-shadow:0 2px 8px #0005;border-radius:8px;padding:9px 13px}
+#controls.collapsed #toggleControls:hover{background:#2e3a58}
+
 #navPanel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:25;background:rgba(30,43,75,.94);border:1px solid rgba(233,156,55,.44);color:white;border-radius:14px;padding:10px;box-shadow:0 4px 18px #0007;max-width:calc(100vw - 20px)}
 .navTitle{font-size:12px;text-align:center;margin:0 0 8px}
 .navHelp{font-size:11px;color:#d4e0e6;text-align:center;margin:6px 0 0}
-#turnButton{border:1px solid #e4d1a3;border-radius:8px;background:#e99c37;color:#1e2b4b;padding:7px 12px;cursor:pointer;font-weight:bold}
 button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 @media(max-width:600px){#controls{max-height:44dvh;overflow:auto}#navPanel{bottom:6px;padding:8px}#controls h1{font-size:14px}}
 </style><style>
@@ -32,7 +36,6 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 .exitMarker:hover::before{background:rgba(233,156,55,.24)}
 .exitMarker .chevron{position:relative;display:block;width:11px;height:11px;border-top:2.5px solid #fff;border-right:2.5px solid #fff;transform:rotate(-45deg)}
 .exitMarker:hover .chevron{border-color:#e99c37}
-#turnWrap{text-align:center;margin-top:7px}
 @media(max-width:600px){#navPanel{width:158px}#radar{width:134px;height:134px}.exitMarker{width:27px;height:27px}.exitMarker .chevron{width:10px;height:10px}#you{width:28px;height:28px;font-size:8px}}
 
 
@@ -242,7 +245,7 @@ background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-siz
 <nav id="navPanel" aria-label="Directional compass">
 <div id="radar"><div id="exits"></div><div id="equipmentMarkers"></div><div id="you">YOU ↑</div></div>
 <div class="compactLegend" aria-hidden="true"><span><span class="legendArrow">⌃</span> Exit</span><span><span class="legendIcon"></span> Equipment</span></div>
-<div id="turnWrap"><button id="turnButton" type="button">⤾ Turn around</button></div>
+
 </nav>
 <script>
 'use strict';
@@ -893,11 +896,6 @@ viewer.on('load',()=>{
   pendingEquipmentOnLoad=null;
   openEquipmentInfo(request.index);
 });
-function turnAround(){
-  const alt=turnTargets[activePreset]||sceneDefaults[currentScene()];
-  if(alt && views[alt].scene===currentScene())goToView(alt);
-  else {cancelPendingEquipmentPanel();viewer.lookAt(viewer.getPitch(),viewer.getYaw()+180,viewer.getHfov(),1000);}
-}
 document.getElementById('start').addEventListener('click',()=>goToView('s1start'));
 equipmentSelect.addEventListener('change',()=>{if(equipmentSelect.value!=='')jumpToEquipment(Number(equipmentSelect.value))});
 const toggle=document.getElementById('toggleControls');
@@ -930,7 +928,6 @@ const equipmentIconByIndex = ["cube", "bolt", "layers", "bolt", "layers", "peel"
 function equipmentSymbolFor(index) {
   return equipmentIconSvg[equipmentIconByIndex[index]] || equipmentIconSvg.printer;
 }
-document.getElementById('turnButton').addEventListener('click',turnAround);
 let lastScene='',lastPreset='',lastYaw=null;
 function refreshNav(){
   const scene=currentScene(), routes=chooseRoutes();
