@@ -1076,115 +1076,92 @@ try{welcomeGuide.hidden=localStorage.getItem('makerspaceTourGuideSeenV1')==='1';
 catch(err){welcomeGuide.hidden=false;}
 
 
-// Opportunistic neighbor prefetch for the multiresolution test tour.
-// Keep prefetch small, prioritize what the compass currently offers, and
-// never change the image resolution, visual design, or Pannellum navigation.
-// Browser image cache is shared with Pannellum's tile requests when cacheable.
+// Minimal neighbor prefetch: never compete with an actively loading scene.
+// After Pannellum fires 'load', wait for five seconds of visitor inactivity.
+// Fetch only six level-1 overview tiles for ONE neighboring scene.
+// Visible scene navigation always cancels pending / active prefetch requests.
 const tilePrefetch = (() => {
-  const faces = ['f','b','l','r','u','d'];
-  const cachedRequests = new Set();
-  const network = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  let epoch = 0;
-  let pendingTimer = null;
-  let queue = [];
-  let active = 0;
-  const concurrency = 2;  // don't compete heavily with visible panorama tiles
+  const faces=['f','b','l','r','u','d'];
+  const network=navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const completed=new Set();
+  let timer=null;
+  let controller=null;
+  let generation=0;
+  let currentReady=false;
 
-  function connectionTier() {
-    if (network && network.saveData) return 'save-data';
-    if (network && /(^|-)2g$/.test(network.effectiveType || '')) return 'very-slow';
-    if (network && network.effectiveType === '3g') return 'constrained';
-    return 'normal'; // navigator.connection is unavailable in some browsers
+  function cancel() {
+    ++generation;
+    if (timer!==null) { clearTimeout(timer); timer=null; }
+    if (controller) { controller.abort(); controller=null; }
   }
-  function tileURL(scene, level, face, y, x) {
-    const config = multiresConfigs[scene];
-    return `${config.basePath}/${level}/${face}${y}_${x}.${config.extension}`;
+  function allowed() {
+    if (document.hidden || !currentReady) return false;
+    if (network && (network.saveData || /(^|-)2g$/.test(network.effectiveType||''))) return false;
+    return true;
   }
-  function addLevel(dest, level, result) {
-    const count = level === 1 ? 1 : 2;
+  function nextScene() {
+    const scene=currentScene(), yaw=viewer.getYaw();
+    let best=null, bestDistance=Infinity;
+    for (const route of chooseRoutes()) {
+      const dest=views[route.target].scene;
+      if (dest===scene) continue;
+      const bearing=route.yaw+(bearingAdjustments[route.id]||0);
+      const distance=Math.abs(((bearing-yaw+540)%360)-180);
+      if (distance<bestDistance) { bestDistance=distance; best=dest; }
+    }
+    return best;
+  }
+  async function run(myGeneration) {
+    timer=null;
+    if (!allowed() || myGeneration!==generation) return;
+    const dest=nextScene();
+    if (!dest) return;
+    const config=multiresConfigs[dest];
+    if (!config) return;
+    controller=new AbortController();
+    const signal=controller.signal;
+    // Serial requests mean at most ONE extra tile competes for cellular data.
     for (const face of faces) {
-      for (let y=0;y<count;y++) for (let x=0;x<count;x++) {
-        const url = tileURL(dest,level,face,y,x);
-        if (!cachedRequests.has(url)) result.push(url);
+      if (myGeneration!==generation || !allowed() || signal.aborted) break;
+      const url=`${config.basePath}/1/${face}0_0.${config.extension}`;
+      if (completed.has(url)) continue;
+      try {
+        // Same-origin GETs can populate the browser HTTP cache used by Pannellum.
+        // Cache behavior still depends on GitHub Pages and browser cache policies.
+        const response=await fetch(url,{signal,cache:'force-cache'});
+        if (response.ok) {
+          await response.blob(); // Fully consume the response before proceeding.
+          if (myGeneration===generation) completed.add(url);
+        }
+      } catch(err) {
+        if (signal.aborted) break;
+        // Network errors do not block the tour or subsequent tiles.
       }
     }
-  }
-  function nextScenes() {
-    const current = currentScene();
-    const yaw = viewer.getYaw();
-    const unique = new Map();
-    for (const route of chooseRoutes()) {
-      const destination = views[route.target].scene;
-      if (destination === current) continue;
-      const compassBearing = route.yaw + (bearingAdjustments[route.id] || 0);
-      const angularDistance = Math.abs(((compassBearing - yaw + 540) % 360) - 180);
-      if (!unique.has(destination) || angularDistance < unique.get(destination))
-        unique.set(destination, angularDistance);
-    }
-    return [...unique.entries()].sort((a,b)=>a[1]-b[1]).map(([scene])=>scene);
-  }
-  function processQueue(myEpoch) {
-    if (myEpoch !== epoch || document.hidden) return;
-    while (active < concurrency && queue.length) {
-      const url = queue.shift();
-      if (cachedRequests.has(url)) continue;
-      cachedRequests.add(url);
-      active++;
-      const img = new Image();
-      let completed = false;
-      const finish = (success) => {
-        if (completed) return;
-        completed = true;
-        active--;
-        if (!success) cachedRequests.delete(url); // allow retry if network failed
-        img.onload = img.onerror = null;
-        processQueue(epoch);
-      };
-      img.onload = () => finish(true);
-      img.onerror = () => finish(false);
-      img.src = url;
-    }
-  }
-  function start() {
-    pendingTimer = null;
-    if (document.hidden) return;
-    const tier = connectionTier();
-    if (tier === 'save-data') return;
-    const neighbors = nextScenes();
-    if (!neighbors.length) return;
-    const urls = [];
-    // Small, low-resolution overview for up to two reachable scenes.
-    for (const scene of neighbors.slice(0, tier === 'very-slow' ? 1 : 2))
-      addLevel(scene, 1, urls);
-    // On normal / 3G connections, prefetch the next detail tier of ONLY the
-    // closest exit. This gives first-visit coverage without downloading L3.
-    if (tier !== 'very-slow') addLevel(neighbors[0], 2, urls);
-    queue = urls;
-    processQueue(epoch);
+    if (myGeneration===generation) controller=null;
   }
   function schedule() {
-    ++epoch;
-    queue = [];
-    if (pendingTimer !== null) clearTimeout(pendingTimer);
-    // Let Pannellum's visible scene tiles have the connection first.
-    pendingTimer = setTimeout(start, 1200);
+    cancel();
+    if (!allowed()) return;
+    const myGeneration=generation;
+    timer=setTimeout(()=>{run(myGeneration);},5000);
   }
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      ++epoch;
-      queue = [];
-      if (pendingTimer !== null) clearTimeout(pendingTimer);
-      pendingTimer = null;
-    } else schedule();
+  function sceneChanging() { currentReady=false; cancel(); }
+  function sceneLoaded() { currentReady=true; schedule(); }
+  // Restart the idle delay after visitor interaction, without initiating downloads.
+  const panorama=document.getElementById('panorama');
+  for (const event of ['pointerdown','wheel','touchstart'])
+    panorama.addEventListener(event,()=>{if(currentReady) schedule();},{passive:true});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)cancel(); else if(currentReady)schedule();
   });
-  if (network && network.addEventListener)
-    network.addEventListener('change', schedule);
-  return {schedule};
+  if(network && network.addEventListener)
+    network.addEventListener('change',schedule);
+  return {sceneChanging,sceneLoaded};
 })();
-viewer.on('load', () => tilePrefetch.schedule());
+viewer.on('load',()=>tilePrefetch.sceneLoaded());
 
-viewer.on('scenechange',function(){closeEquipmentInfo();refreshNav();tilePrefetch.schedule();});
+viewer.on('scenechange',function(){tilePrefetch.sceneChanging();closeEquipmentInfo();refreshNav();});
 refreshNav();
-tilePrefetch.schedule();
 requestAnimationFrame(animateCompass);
 </script></body></html>
