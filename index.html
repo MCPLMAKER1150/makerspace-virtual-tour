@@ -15,14 +15,10 @@ html,body{margin:0;width:100%;height:100%;font:15px Arial,sans-serif}
 #controls button{border:0;border-radius:6px;padding:8px 12px;margin-top:9px;cursor:pointer}
 #toggleControls{float:right;margin:0!important}
 #controls.collapsed #bodyControls{display:none}
-/* Hide the navy controls card completely when collapsed; leave only Show visible. */
 #controls.collapsed{left:12px;right:auto;width:auto;max-width:none;padding:0;background:transparent;border:0;box-shadow:none;overflow:visible}
 #controls.collapsed #toggleControls{float:none;margin:0!important;background:#1e2b4b;color:#fff;border:1px solid #e99c37;box-shadow:0 2px 8px #0005;border-radius:8px;padding:9px 13px}
 #controls.collapsed #toggleControls:hover{background:#2e3a58}
-
 #navPanel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:25;background:rgba(30,43,75,.94);border:1px solid rgba(233,156,55,.44);color:white;border-radius:14px;padding:10px;box-shadow:0 4px 18px #0007;max-width:calc(100vw - 20px)}
-.navTitle{font-size:12px;text-align:center;margin:0 0 8px}
-.navHelp{font-size:11px;color:#d4e0e6;text-align:center;margin:6px 0 0}
 button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 @media(max-width:600px){#controls{max-height:44dvh;overflow:auto}#navPanel{bottom:6px;padding:8px}#controls h1{font-size:14px}}
 </style><style>
@@ -37,10 +33,6 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 .exitMarker .chevron{position:relative;display:block;width:11px;height:11px;border-top:2.5px solid #fff;border-right:2.5px solid #fff;transform:rotate(-45deg)}
 .exitMarker:hover .chevron{border-color:#e99c37}
 @media(max-width:600px){#navPanel{width:158px}#radar{width:134px;height:134px}.exitMarker{width:27px;height:27px}.exitMarker .chevron{width:10px;height:10px}#you{width:28px;height:28px;font-size:8px}}
-
-
-/* Makerspace brand palette from supplied image: navy #1E2B4B, slate #2E3A58,
-   white #FFFFFF, gold #E99C37. Scene exits stay white; equipment is gold. */
 #equipmentMarkers{position:absolute;inset:0;pointer-events:none}
 .equipmentMarker{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;
   display:grid;place-items:center;padding:0;border:1.5px solid #fff;border-radius:50%;
@@ -52,12 +44,9 @@ button:focus-visible{outline:3px solid #ffda68;outline-offset:2px}
 #navPanel .legendIcon{display:inline-block;vertical-align:-2px;margin-right:4px;width:8px;height:8px;border-radius:50%;background:#e99c37}
 #navPanel .legendArrow{display:inline-block;margin-right:3px;font-size:15px;line-height:8px}
 @media(max-width:600px){.equipmentMarker{width:20px;height:20px}.equipmentMarker svg{width:12px;height:12px}#navPanel .compactLegend{gap:9px;font-size:9px}}
-
-/* Panorama information markers for all equipment; one marker covers both H2D printers. */
 .pnlm-hotspot.equipment-info-hotspot{width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:#2e3a58;box-shadow:0 3px 10px #0009;cursor:pointer;box-sizing:border-box;display:grid;place-items:center}
 .pnlm-hotspot.equipment-info-hotspot::before{content:'i';font:700 24px/1 Georgia,serif;color:white}
 .pnlm-hotspot.equipment-info-hotspot:hover,.pnlm-hotspot.equipment-info-hotspot:focus-visible{background:#1e2b4b;outline:2px solid #e99c37;outline-offset:2px}
-/* Keep the popup separate from the compass and the equipment selector. */
 #equipmentPanel{position:absolute;z-index:40;top:16px;right:16px;width:min(350px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border-radius:14px;padding:20px;color:#fff;background:rgba(30,43,75,.97);border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 25px #0008}
 #equipmentPanel[hidden]{display:none}
 #equipmentPanel h2{font-size:20px;margin:0 38px 4px 0}
@@ -74,8 +63,6 @@ border-bottom:1px solid rgba(255,255,255,.2);border-radius:13px 13px 0 0}
 background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-size:23px;line-height:1;cursor:pointer}
 #closeEquipmentPanel:hover{background:#3b4869}
 @media(max-width:600px){#equipmentPanel{top:auto;bottom:10px;left:10px;right:10px;width:auto;max-height:min(63dvh,450px);padding:16px}#equipmentPanelHeader{top:-16px;margin:-16px -16px 10px}}
-
-/* Phone-friendly interaction targets while preserving a small visible marker. */
 .exitMarker{width:42px;height:42px}
 .exitMarker::before{inset:9px}
 .equipmentMarker{width:42px;height:42px;border:0;box-shadow:none;background:transparent;color:#1e2b4b}
@@ -93,10 +80,6 @@ background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-siz
 #welcomeDone{border:0;border-radius:7px;padding:9px 16px;background:#e99c37;color:#1e2b4b;font-weight:700;cursor:pointer}
 @media(max-width:600px){#welcomeGuide{top:10px;left:50%;right:auto;transform:translateX(-50%);width:min(340px,calc(100vw - 20px))}}
 @media(prefers-reduced-motion:reduce){.equipmentMarker{transition:none}}
-
-/* On short, touch-controlled landscape embeds, the compass defaults to a
-   compact button so it doesn't cover the panorama. Tap to expand temporarily.
-   Normal desktop and portrait layouts are unchanged. */
 #landscapeCompassToggle{display:none}
 @media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
   #navPanel{left:auto;right:8px;bottom:8px;transform:none}
@@ -118,7 +101,6 @@ background:#2e3a58;color:white;border-radius:50%;width:36px;height:36px;font-siz
 <label for="equipmentSelect">Find equipment</label><select id="equipmentSelect"><option value="">Choose equipment…</option></select>
 <button id="start" type="button">Return to tour start</button> <button id="showHelp" type="button" aria-haspopup="dialog">Help</button>
 </div></section>
-
 <section id="welcomeGuide" aria-label="Tour instructions" hidden>
 <h2>Welcome to the Makerspace!</h2>
 <p>Drag or swipe to look around. Use white arrows to move between scenes, or select an equipment icon to see a machine and its information.</p>
@@ -746,13 +728,8 @@ const equipment = [
     "hfov": 98.95486621
   }
 ];
-
 const sceneDefinitions={};
 for(let n=1;n<=9;n++)sceneDefinitions[`scene${n}`]={type:'equirectangular',panorama:`R00100${16+n}E.jpg`,hotSpots:[]};
-// One in-panorama information marker per equipment entry.
-// All except the relocated Scene 7 heat press use independently recorded hotspot bearings.
-// The heat press marker temporarily uses its Scene 7 viewing coordinates:
-// its original hotspot pitch/yaw belonged to Scene 8, not Scene 7.
 const equipmentHotspotPositionOverrides = {
   10: {pitch:-16.1754, yaw:134.2238} // Heat press: provisional, refine when measured
 };
@@ -786,8 +763,6 @@ function openEquipmentInfo(index, opener=null){
     section.hidden=Number(section.dataset.equipment)!==index;
   });
   equipmentPanelOpener=opener || pendingEquipmentOpener || document.activeElement;
-  // Navigation redraws compass markers. Return focus to the replacement marker
-  // when the original element is no longer attached to the page.
   if(equipmentPanelOpener && !equipmentPanelOpener.isConnected){
     equipmentPanelOpener=document.querySelector(`.equipmentMarker[data-equipment="${index}"]`) || equipmentSelect;
   }
@@ -807,8 +782,6 @@ function closeEquipmentInfo(restoreFocus=false){
 }
 document.getElementById('closeEquipmentPanel').addEventListener('click',()=>closeEquipmentInfo(true));
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape' && !document.getElementById('equipmentPanel').hidden){ev.preventDefault();closeEquipmentInfo(true);}});
-// Limit horizontal field of view on phone-sized screens. Desktop presets remain unchanged.
-// Using min() preserves equipment views that were already zoomed in below 80°.
 const phoneViewport = window.matchMedia('(max-width: 600px)');
 const MOBILE_HFOV = 80;
 let preferredHfov=views.s1start.hfov;
@@ -821,8 +794,6 @@ function handleViewportChange(){
   const isMobile=phoneViewport.matches;
   if(isMobile===lastWasMobile)return;
   lastWasMobile=isMobile;
-  // Restrict a newly narrow frame; restore the selected camera preset on widening
-  // only if its FOV was limited by the mobile cap.
   if(isMobile){if(viewer.getHfov()>MOBILE_HFOV)viewer.setHfov(MOBILE_HFOV);}
   else if(preferredHfov>MOBILE_HFOV && Math.abs(viewer.getHfov()-MOBILE_HFOV)<1){viewer.setHfov(preferredHfov);}
   lastYaw=null;
@@ -832,9 +803,7 @@ phoneViewport.addEventListener('change',handleViewportChange);
 window.addEventListener('resize',handleViewportChange);
 const viewer=pannellum.viewer('panorama',{default:{firstScene:'scene1',autoLoad:true,sceneFadeDuration:800,pitch:views.s1start.pitch,yaw:views.s1start.yaw,hfov:displayHfov(views.s1start.hfov)},scenes:sceneDefinitions});
 const sceneDefaults={scene1:'s1start',scene2:'s2from1',scene3:'s3from2',scene4:'s4from23',scene5:'s5from4',scene6:'s6from5',scene7:'s7from6',scene8:'s8from7',scene9:'s9from8'};
-const turnTargets={s1start:'s1return',s1return:'s1start',s2from1:'s2from3',s2from3:'s2from1',s2to4:'s2from3',s3from2:'s3face2',s3face2:'s3from2',s4from23:'s4from59',s4from59:'s4from23',s5from4:'s5from6',s5from6:'s5from4',s6from5:'s6from7',s6from7:'s6from5',s7from6:'s7from8',s7from8:'s7from6',s8from7:'s8from9',s8from9:'s8from7',s9from8:'s9from45',s9from45:'s9from8'};
 const navLinks=links.filter(l=>l.kind==='move' && l.id!=='nav6').map(x=>({...x}));
-// Fill gaps detected during the first screen-fixed test; coordinates use existing recorded directions.
 navLinks.push(
   {id:'extra2to4',source:'s2from3',target:'s4from23',yaw:-52.14476,pitch:-33.32863,kind:'move'},
   {id:'extra7to6',source:'s7from6',target:'s6from7',yaw:19.04463,pitch:48.68148,kind:'move'},
@@ -865,7 +834,6 @@ function chooseRoutes(){
     if(views[link.source].scene!==scene)continue;
     const destScene=views[link.target].scene;
     const old=options.get(destScene);
-    // Prefer a link recorded for the actual arrival view, but keep every unique exit visible.
     if(!old || (link.source===activePreset && old.source!==activePreset))options.set(destScene,link);
   }
   return [...options.values()].sort((a,b)=>Number(views[a.target].scene.slice(5))-Number(views[b.target].scene.slice(5)));
@@ -896,7 +864,6 @@ function jumpToEquipment(index){
   if(!sameScene)activePreset=sceneDefaults[e.scene];
     if(sameScene){
     viewer.lookAt(e.viewPitch,e.viewYaw,displayHfov(e.hfov),1000);
-    // Wait for the focus animation before showing this machine's information.
     window.setTimeout(()=>{
       if(panelRequestToken===requestToken && currentScene()===e.scene)openEquipmentInfo(index);
     },1050);
@@ -916,13 +883,9 @@ document.getElementById('start').addEventListener('click',()=>goToView('s1start'
 equipmentSelect.addEventListener('change',()=>{if(equipmentSelect.value!=='')jumpToEquipment(Number(equipmentSelect.value))});
 const toggle=document.getElementById('toggleControls');
 toggle.addEventListener('click',()=>{const hidden=document.getElementById('controls').classList.toggle('collapsed');toggle.textContent=hidden?'Show':'Hide';toggle.setAttribute('aria-expanded',String(!hidden))});
-
-// Compact the compass automatically on a short touch-screen landscape view.
-// Patrons can expand it when they need navigation; portrait and desktop unaffected.
 const landscapeCompassToggle=document.getElementById('landscapeCompassToggle');
 const navPanel=document.getElementById('navPanel');
 const compactLandscape=window.matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
-// Initialize tracking before responsive controls may invalidate it.
 let lastScene='',lastPreset='',lastYaw=null;
 let lastLandscapeMode=null;
 function setLandscapeCompassCollapsed(collapsed){
@@ -943,19 +906,13 @@ landscapeCompassToggle.addEventListener('click',()=>{
 compactLandscape.addEventListener('change',handleLandscapeCompassChange);
 window.addEventListener('resize',handleLandscapeCompassChange);
 handleLandscapeCompassChange();
-
 const exitsEl=document.getElementById('exits');
 const equipmentMarkersEl=document.getElementById('equipmentMarkers');
-// All equipment is displayed only on its own scene. A single marker represents
-// both H2D printers. The heat press marker cannot use its old Scene 8 bearing;
-// its Scene 7 view yaw is used until a separate Scene 7 hotspot yaw is measured.
 const equipmentMarkerYawOverrides = { 'US Cutter FLHP — Heat Press': 132.9604 };
 function equipmentBearing(e){
   return Object.prototype.hasOwnProperty.call(equipmentMarkerYawOverrides,e.name)
     ? equipmentMarkerYawOverrides[e.name] : e.yaw;
 }
-// Each machine has a recognisable icon; the two H2D printers share one marker.
-// Marker positions still use physical equipment bearings, not camera-view yaw.
 const equipmentIconSvg = {
   "cube": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m12 2 9 5-9 5-9-5 9-5Z M3 7v10l9 5 9-5V7 M12 12v10\"/></svg>",
   "bolt": "<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m13 2-10 12h8l-1 8 11-13h-8l0-7Z\"/></svg>",
@@ -1026,8 +983,6 @@ function positionMarkers(){
     button.style.transform=`translate(-50%,-50%) rotate(${angle*180/Math.PI}deg)`;
     exits.push({x,y});
   });
-  // Keep equipment bearings as the source of truth. Adjust only the on-screen
-  // presentation when markers would otherwise obscure one another.
   const placed=[];
   equipmentMarkersEl.querySelectorAll('button').forEach((button,index)=>{
     const base=(Number(button.dataset.bearing)-yaw)*Math.PI/180;
@@ -1057,7 +1012,6 @@ function animateCompass(){
   else positionMarkers();
   requestAnimationFrame(animateCompass);
 }
-// The brief guide appears only on the first visit and can be reopened via Help.
 const welcomeGuide=document.getElementById('welcomeGuide');
 const welcomeDone=document.getElementById('welcomeDone');
 const showHelp=document.getElementById('showHelp');
@@ -1071,7 +1025,6 @@ welcomeGuide.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDef
 showHelp.addEventListener('click',()=>{welcomeGuide.hidden=false;welcomeDone.focus();});
 try{welcomeGuide.hidden=localStorage.getItem('makerspaceTourGuideSeenV1')==='1';}
 catch(err){welcomeGuide.hidden=false;}
-
 viewer.on('scenechange',function(){closeEquipmentInfo();refreshNav();});
 refreshNav();
 requestAnimationFrame(animateCompass);
